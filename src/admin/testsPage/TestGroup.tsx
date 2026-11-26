@@ -38,6 +38,7 @@ export function TestGroup({
   extra?: ReactNode;
 }) {
   const id = useId();
+  const head = (text: string) => (columns ? text : <span className="sr-only">{text}</span>);
   return (
     <section className="test-group" aria-labelledby={id}>
       <div className="group-head">
@@ -55,15 +56,15 @@ export function TestGroup({
             <col className="col-num" />
             <col />
           </colgroup>
-          <thead className={columns ? undefined : 'sr-only-head'}>
+          <thead className={columns ? undefined : 'quiet-head'}>
             <tr>
-              <th scope="col">{t('Test')}</th>
-              <th scope="col">{t('Etapa')}</th>
+              <th scope="col">{head(t('Test'))}</th>
+              <th scope="col">{head(t('Etapa'))}</th>
               <th scope="col" className="num">
-                {t('Lucrări')}
+                {head(t('Lucrări'))}
               </th>
               <th scope="col" className="next-col">
-                {t('Următorul pas')}
+                {head(t('Următorul pas'))}
               </th>
             </tr>
           </thead>

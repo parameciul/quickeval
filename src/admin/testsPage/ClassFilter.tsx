@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ClassSummary, TestSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { classToneStyle } from '../../ui/classTone.ts';
@@ -10,7 +11,10 @@ import { t } from '../../i18n/t.ts';
 // list of the year's classes (each with its colour, a dot when a test waits on
 // the teacher, and how many tests it shows), and in its foot the box for the
 // archived tests. A choice changes the address, which closes the menu; the
-// focus goes back to the button first, so it is not lost with the menu.
+// focus goes back to the button first, so it is not lost with the menu. A
+// choice can also move the filter beside another group's title (a new button):
+// a filter that appears while `takesFocus()` says so takes the focus.
+// The archived classes come last, in their own group, as in "Schimbă clasa".
 export function ClassFilter({
   classes,
   tests,
@@ -18,6 +22,7 @@ export function ClassFilter({
   showArchived,
   onClass,
   onArchived,
+  takesFocus,
 }: {
   classes: ClassSummary[];
   tests: TestSummary[];
@@ -25,8 +30,16 @@ export function ClassFilter({
   showArchived: boolean;
   onClass: (classId: number | null) => void;
   onArchived: (show: boolean) => void;
+  takesFocus: () => boolean;
 }) {
   const menu = useSmallMenu();
+  // Only when it appears: the filter that stays in place keeps the focus
+  // `choose` gave it.
+  const takes = useRef(takesFocus);
+  const button = menu.button;
+  useEffect(() => {
+    if (takes.current()) button.current?.focus();
+  }, [button]);
   const shown = (test: TestSummary) => showArchived || !test.archived;
   const countOf = (classId: number | null) => tests.filter((test) => (classId === null || test.classId === classId) && shown(test)).length;
   const waiting = new Set(tests.filter((test) => todoOf(test) !== null).map((test) => test.classId));
@@ -39,12 +52,14 @@ export function ClassFilter({
     menu.button.current?.focus();
     act();
   };
+  const active = classes.filter((entry) => !entry.archived);
+  const archived = classes.filter((entry) => entry.archived);
   const item = (classId: number | null, text: string, muted = false) => (
     <button
       key={classId ?? 'all'}
       type="button"
       className={muted ? 'class-menu-item is-muted' : 'class-menu-item'}
-      aria-pressed={classId === chosenClass}
+      aria-current={classId === chosenClass ? 'true' : undefined}
       onClick={() => choose(() => onClass(classId))}
     >
       <span className="class-item-name">
@@ -76,7 +91,15 @@ export function ClassFilter({
       {menu.open && (
         <div className="class-menu class-filter-menu" id="class-filter-menu">
           {item(null, t('Toate clasele'))}
-          {classes.map((entry) => item(entry.id, displayClassName(entry.name), entry.archived))}
+          {active.map((entry) => item(entry.id, displayClassName(entry.name)))}
+          {archived.length > 0 && (
+            <div className="class-menu-group" role="group" aria-labelledby="class-filter-archived">
+              <p id="class-filter-archived" className="class-menu-group-title">
+                {t('Arhivate')}
+              </p>
+              {archived.map((entry) => item(entry.id, displayClassName(entry.name), true))}
+            </div>
+          )}
           <div className="class-menu-foot">
             <label className="check-label">
               <input type="checkbox" checked={showArchived} onChange={(event) => choose(() => onArchived(event.target.checked))} />

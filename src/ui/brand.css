@@ -1885,8 +1885,8 @@ a.class-badge:hover {
 }
 
 /* The Teste page (redesign spec §5): the greeting with what waits, the list
-   of it in place, the class chips, and the tests in two groups, each row
-   with a bar of the six stages. */
+   of it in place, and the tests in two groups with the class filter, each
+   row with a bar of the six stages. */
 .tests-page .page-head {
   margin-bottom: 1.25rem;
 }
@@ -2016,6 +2016,12 @@ a.class-badge:hover {
   justify-content: flex-end;
 }
 
+/* Wrapped under the title on a narrow screen, the filter stays on the right,
+   so its menu never hangs past the screen's left edge. */
+.group-head > .class-filter {
+  margin-left: auto;
+}
+
 .group-title {
   display: flex;
   align-items: center;
@@ -2050,7 +2056,7 @@ a.class-badge:hover {
   max-width: calc(100vw - 2rem);
 }
 
-.class-filter .class-menu-item[aria-pressed="true"] {
+.class-filter .class-menu-item[aria-current="true"] {
   background: var(--ink-tint);
 }
 
@@ -2105,19 +2111,17 @@ table.tests col.col-num {
   width: 10%;
 }
 
-table.tests thead.sr-only-head {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+/* A table after the first keeps its column names in the table, for screen
+   readers, with their words hidden and no height. */
+table.tests thead.quiet-head th {
+  height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
   border: 0;
+  line-height: 0;
 }
 
-table.tests thead.sr-only-head + tbody tr:first-child > * {
+table.tests thead.quiet-head + tbody tr:first-child > * {
   border-top: 0;
 }
 

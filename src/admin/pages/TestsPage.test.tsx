@@ -290,10 +290,12 @@ describe('TestsPage, what waits', () => {
     );
     const working = await screen.findByRole('region', { name: 'În lucru' });
     const finished = screen.getByRole('region', { name: 'Terminate' });
-    expect(working.querySelector('thead')).not.toHaveClass('sr-only-head');
+    expect(working.querySelector('thead')).not.toHaveClass('quiet-head');
     // The second table keeps its column names for screen readers only.
-    expect(finished.querySelector('thead')).toHaveClass('sr-only-head');
+    expect(finished.querySelector('thead')).toHaveClass('quiet-head');
     expect(within(finished).getByRole('columnheader', { name: 'Etapa' })).toBeInTheDocument();
+    expect(within(finished).getByText('Etapa')).toHaveClass('sr-only');
+    expect(within(working).getByRole('columnheader', { name: 'Etapa' }).querySelector('.sr-only')).toBeNull();
     expect(within(working).getByRole('group', { name: 'Clasa' })).toBeInTheDocument();
     expect(within(finished).queryByRole('group', { name: 'Clasa' })).not.toBeInTheDocument();
     expect(working.querySelector('.group-title .tag')).toHaveTextContent('1');
@@ -310,7 +312,7 @@ describe('TestsPage, what waits', () => {
     );
     const finished = await screen.findByRole('region', { name: 'Terminate' });
     expect(within(finished).getByRole('group', { name: 'Clasa' })).toBeInTheDocument();
-    expect(finished.querySelector('thead')).not.toHaveClass('sr-only-head');
+    expect(finished.querySelector('thead')).not.toHaveClass('quiet-head');
   });
 
   it('leaves out a group with no test', async () => {
@@ -351,7 +353,7 @@ describe('TestsPage filters', () => {
     expect(await screen.findByRole('link', { name: 'Fracții' })).toBeInTheDocument();
     expect(filterButton()).toHaveTextContent('Toate clasele');
     expect(filterButton()).toHaveAttribute('aria-expanded', 'false');
-    expect(await classItem('Toate clasele')).toHaveAttribute('aria-pressed', 'true');
+    expect(await classItem('Toate clasele')).toHaveAttribute('aria-current', 'true');
     expect(filterButton()).toHaveAttribute('aria-expanded', 'true');
     await userEvent.click(await classItem('Clasa 6E3'));
     expect(screen.queryByRole('link', { name: 'Fracții' })).not.toBeInTheDocument();
@@ -361,8 +363,8 @@ describe('TestsPage filters', () => {
     expect(filterMenu()).toBeNull();
     expect(filterButton()).toHaveFocus();
     expect(filterButton()).toHaveTextContent('Clasa 6E3');
-    expect(await classItem('Clasa 6E3')).toHaveAttribute('aria-pressed', 'true');
-    expect(await classItem('Toate clasele')).toHaveAttribute('aria-pressed', 'false');
+    expect(await classItem('Clasa 6E3')).toHaveAttribute('aria-current', 'true');
+    expect(await classItem('Toate clasele')).not.toHaveAttribute('aria-current');
     await userEvent.click(await classItem('Toate clasele'));
     expect(await screen.findByRole('link', { name: 'Fracții' })).toBeInTheDocument();
     await expectLocation(/^\/$/);
@@ -399,6 +401,76 @@ describe('TestsPage filters', () => {
     expect(await classItem('Clasa 6E3')).toHaveTextContent(/3 teste$/);
   });
 
+  it('gives the focus to the filter also when a choice moves it to another title', async () => {
+    renderAdmin(
+      '/',
+      createFakeApi({
+        classes: [
+          { id: 1, name: '6E2', schoolYear: 2026, archived: false, studentCount: 0 },
+          { id: 2, name: '6E3', schoolYear: 2026, archived: false, studentCount: 0 },
+          { id: 3, name: '6E4', schoolYear: 2026, archived: false, studentCount: 0 },
+        ],
+        students: {},
+        tests: [
+          fakeTest({ code: '6E2-26T1', title: 'Fracții' }),
+          fakeTest({ code: '6E3-26T1', title: 'Pătrate', classId: 2, className: '6E3', status: 'done', resultsOpen: true, ...ready, ...started }),
+        ],
+      }),
+    );
+    await screen.findByRole('link', { name: 'Fracții' });
+    expect(within(screen.getByRole('region', { name: 'În lucru' })).getByRole('group', { name: 'Clasa' })).toBeInTheDocument();
+    // 6E3 has no test in work: the filter moves beside "Terminate".
+    await userEvent.click(await classItem('Clasa 6E3'));
+    const finished = await screen.findByRole('region', { name: 'Terminate' });
+    await waitFor(() => expect(within(finished).getByRole('group', { name: 'Clasa' })).toBeInTheDocument());
+    await waitFor(() => expect(filterButton()).toHaveFocus());
+    // 6E4 has no test: the filter stands on a line of its own.
+    await userEvent.click(await classItem('Clasa 6E4'));
+    expect(await screen.findByText('Nu ai teste pentru această alegere.')).toBeInTheDocument();
+    await waitFor(() => expect(filterButton()).toHaveFocus());
+    expect(filterButton()).toHaveTextContent('Clasa 6E4');
+  });
+
+  it('lists the archived classes last, under their own title', async () => {
+    renderAdmin(
+      '/',
+      createFakeApi({
+        classes: [
+          { id: 1, name: '5A', schoolYear: 2026, archived: true, studentCount: 0 },
+          { id: 2, name: '6E3', schoolYear: 2026, archived: false, studentCount: 0 },
+        ],
+        students: {},
+        tests: [fakeTest({ code: '6E3-26T1', title: 'Pătrate', classId: 2, className: '6E3' })],
+      }),
+    );
+    await screen.findByRole('link', { name: 'Pătrate' });
+    const menu = await openFilter();
+    const group = within(menu).getByRole('group', { name: 'Arhivate' });
+    expect(within(group).getByText('Clasa 5A').closest('button')).toHaveClass('is-muted');
+    const names = [...menu.querySelectorAll('.class-item-name')].map((item) => item.textContent);
+    expect(names).toEqual(['Toate clasele', 'Clasa 6E3', 'Clasa 5A']);
+  });
+
+  it('shows no filter until the classes are read, so it never shows the wrong class', async () => {
+    const api = withManyClasses();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const read = api.listClasses.getMockImplementation()!;
+    api.listClasses.mockImplementation(async (schoolYear: number) => {
+      await gate;
+      return read(schoolYear);
+    });
+    renderAdmin('/?class=2', api);
+    await screen.findByRole('navigation', { name: 'Meniu' });
+    await waitFor(() => expect(api.listTests).toHaveBeenCalled());
+    expect(screen.queryByRole('group', { name: 'Clasa' })).not.toBeInTheDocument();
+    act(() => release());
+    expect(await screen.findByRole('link', { name: 'Pătrate' })).toBeInTheDocument();
+    expect(filterButton()).toHaveTextContent('Clasa 6E3');
+  });
+
   it('closes the menu on Esc and gives the focus back to its button', async () => {
     renderAdmin('/', withManyClasses());
     await screen.findByRole('link', { name: 'Fracții' });
@@ -413,7 +485,7 @@ describe('TestsPage filters', () => {
     expect(await screen.findByRole('link', { name: 'Pătrate' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Fracții' })).not.toBeInTheDocument();
     expect(filterButton()).toHaveTextContent('Clasa 6E3');
-    expect(await classItem('Clasa 6E3')).toHaveAttribute('aria-pressed', 'true');
+    expect(await classItem('Clasa 6E3')).toHaveAttribute('aria-current', 'true');
   });
 
   it('shows all tests when the class in the address is not a class of the year', async () => {

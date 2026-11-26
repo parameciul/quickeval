@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { countLabel } from '../../ui/format.ts';
 import { useNow } from '../../ui/useNow.ts';
@@ -18,9 +18,9 @@ import { t } from '../../i18n/t.ts';
 // The start page (redesign spec §5): a greeting with what waits on the
 // teacher, and the tests of the selected school year in two groups, newest
 // first, with the class filter beside the first group's title. The class and
-// the archived choice live in the address, so a link or a reload keeps them. A new teacher (no test in the
-// year, and none ever sent to grading) sees "Bun venit" and "Primii pași"
-// instead (redesign spec §11.9).
+// the archived choice live in the address, so a link or a reload keeps them.
+// A new teacher (no test in the year, and none ever sent to grading) sees
+// "Bun venit" and "Primii pași" instead (redesign spec §11.9).
 export function TestsPage() {
   const api = useApi();
   const { year } = useSchoolYear();
@@ -32,13 +32,18 @@ export function TestsPage() {
   const now = useNow();
   // The test whose row takes the focus once a publish has moved it.
   const [focusCode, setFocusCode] = useState<string | null>(null);
+  // A filter choice can move the filter beside another group's title, a new
+  // button: the filter that appears after the address changed takes the
+  // focus. The mark is cleared once that address is drawn (a parent's effect
+  // runs after its children's).
+  const filterFocus = useRef(false);
 
   const requested = Number(params.get('class'));
   const chosenClass = classes.data?.find((item) => item.id === requested)?.id ?? null;
   const showArchived = params.get('archived') === '1';
 
   // A class that is not one of the year's (an old link, or another school year)
-  // leaves the address, so the chips and the address agree.
+  // leaves the address, so the filter and the address agree.
   const staleClass = classes.data !== undefined && params.has('class') && chosenClass === null;
   useEffect(() => {
     if (!staleClass) return;
@@ -51,8 +56,13 @@ export function TestsPage() {
     const next = new URLSearchParams(params);
     if (value === null) next.delete(key);
     else next.set(key, value);
+    if (next.toString() === params.toString()) return;
+    filterFocus.current = true;
     setParams(next, { replace: true });
   };
+  useEffect(() => {
+    filterFocus.current = false;
+  }, [params]);
 
   // What waits covers every class of the year, as "De făcut" in the bar.
   const todo = todoList(tests.data ?? []);
@@ -63,7 +73,7 @@ export function TestsPage() {
   const firstVisit = tests.data?.length === 0 && me.data?.testsEvaluated === 0;
   const hasClass = classes.data?.some((item) => !item.archived) ?? false;
   const groupShown = !classes.isPending && (working.length > 0 || finished.length > 0);
-  const filter = tests.data && (
+  const filter = tests.data && !classes.isPending && (
     <ClassFilter
       classes={classes.data ?? []}
       tests={tests.data}
@@ -71,6 +81,7 @@ export function TestsPage() {
       showArchived={showArchived}
       onClass={(classId) => change('class', classId === null ? null : String(classId))}
       onArchived={(show) => change('archived', show ? '1' : null)}
+      takesFocus={() => filterFocus.current}
     />
   );
 
