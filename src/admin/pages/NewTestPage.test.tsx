@@ -19,10 +19,11 @@ const classes = () =>
 const pdf = (name: string) => new File(['%PDF-1.7'], name, { type: PDF_TYPE });
 const testField = () => screen.getByLabelText(/^Fișierul testului/);
 const baremField = () => screen.getByLabelText(/^Fișierul baremului/);
-const choice = (name: RegExp) => screen.getByRole('radio', { name });
-// The step a heading is in, and the tag at its top right.
+// The barem's switch of the class (the group "Baremul"): Fișier, Din test, Mai târziu.
+const choice = (name: string) => within(screen.getByRole('group', { name: 'Baremul' })).getByRole('radio', { name });
+// The step a heading is in, and where it stands (shown, or for a screen reader).
 const stepOf = (heading: HTMLElement) => heading.closest('li')!;
-const stepTag = (step: HTMLElement) => step.querySelector(':scope > .step-state')?.textContent;
+const stepTag = (step: HTMLElement) => step.querySelector('.step-head > .step-state')?.textContent;
 
 // The class and the title, the first step.
 async function fillClassAndTitle(classId = '1') {
@@ -53,13 +54,49 @@ describe('NewTestPage', () => {
     expect(screen.queryByRole('link', { name: /^←/ })).not.toBeInTheDocument();
   });
 
-  it('puts the barem drop area in the card of its choice, and the test drop area in a frame of the same size', async () => {
+  it('draws the test and the barem as file tiles, and the barem source as a switch of three', async () => {
     renderAdmin('/tests/new', classes());
     await fillClassAndTitle();
-    const card = choice(/^Încarc baremul acum/).closest('.choice-card')!;
-    expect(card).not.toBeNull();
-    expect(card).toContainElement(baremField());
-    expect(testField().closest('.file-frame')).not.toBeNull();
+    const radios = within(screen.getByRole('group', { name: 'Baremul' })).getAllByRole('radio');
+    expect(radios.map((radio) => radio.closest('label')!.textContent)).toEqual(['Fișier', 'Din test', 'Mai târziu']);
+    expect(choice('Fișier')).toBeChecked();
+    expect(testField()).toHaveAccessibleName(/^Fișierul testului: Alege testul Cel pe care îl tipărești\./);
+    expect(baremField()).toHaveAccessibleName(/^Fișierul baremului: Alege baremul După el se dă punctajul\./);
+    expect(document.querySelector('label[for="new-test-file"]')).toHaveClass('pick-tile');
+    expect(screen.getByLabelText('Titlul testului')).toHaveAccessibleDescription('Îl văd și elevii, pe pagina lor.');
+  });
+
+  it('turns a tile green with the name of the file chosen', async () => {
+    renderAdmin('/tests/new', classes());
+    await fillClassAndTitle();
+    await userEvent.upload(testField(), pdf('Test.pdf'));
+    const tile = document.querySelector('label[for="new-test-file"]')!;
+    expect(tile).toHaveClass('pick-tile', 'is-chosen');
+    expect(tile).toHaveTextContent('Test.pdf');
+    expect(tile).toHaveTextContent('Alege alt fișier');
+  });
+
+  it('says what a barem from the test or later means, in a grey tile, and keeps the barem file hidden', async () => {
+    renderAdmin('/tests/new', classes());
+    await fillClassAndTitle();
+    await userEvent.upload(testField(), pdf('Test.pdf'));
+    await userEvent.click(choice('Din test'));
+    expect(baremField()).not.toBeVisible();
+    expect(screen.getByText('Baremul se face din test')).toBeInTheDocument();
+    expect(screen.getByText('În câteva minute. Îl verifici și îl ajustezi înainte de corectare.')).toBeInTheDocument();
+    await userEvent.click(choice('Mai târziu'));
+    expect(screen.queryByText('Baremul se face din test')).not.toBeInTheDocument();
+    expect(screen.getByText('Îl adaugi din pagina testului, la Pregătire')).toBeInTheDocument();
+    expect(screen.getByText('Corectarea nu începe fără barem.')).toBeInTheDocument();
+  });
+
+  it('shows what is still missing only once a class is chosen', async () => {
+    renderAdmin('/tests/new', classes());
+    await screen.findByLabelText('Clasa');
+    expect(screen.queryByText('Încă lipsesc:')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Creează testul' })).toBeDisabled();
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '1');
+    expect(screen.getByText('Încă lipsesc:')).toBeInTheDocument();
   });
 
   it('offers the classes that are not archived', async () => {
@@ -76,7 +113,7 @@ describe('NewTestPage', () => {
     const test = pdf('Test.pdf');
     const barem = new File(['PK'], 'Barem.docx', { type: DOCX_TYPE });
     await userEvent.upload(testField(), test);
-    expect(choice(/^Încarc baremul acum/)).toBeChecked();
+    expect(choice('Fișier')).toBeChecked();
     await userEvent.upload(baremField(), barem);
     await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
 
@@ -103,8 +140,8 @@ describe('NewTestPage', () => {
     renderAdmin('/tests/new', api, <LocationProbe />);
     await fillClassAndTitle();
     await userEvent.upload(testField(), pdf('Test.pdf'));
-    await userEvent.click(choice(/^Generează baremul din test/));
-    expect(baremField().closest('.choice-drop')).not.toBeVisible();
+    await userEvent.click(choice('Din test'));
+    expect(baremField()).not.toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
 
     await expectLocation('/tests/6E2-26T1');
@@ -116,12 +153,13 @@ describe('NewTestPage', () => {
   it('cannot generate the barem without the test, and says why', async () => {
     renderAdmin('/tests/new', classes());
     await screen.findByLabelText('Clasa');
-    const generate = choice(/^Generează baremul din test/);
+    const generate = choice('Din test');
     expect(generate).toBeDisabled();
-    expect(generate.closest('label')).toHaveTextContent('Alege întâi testul, la pasul 2.');
+    expect(generate).toHaveAccessibleDescription('„Din test” se poate după ce alegi testul.');
     await userEvent.upload(testField(), pdf('Test.pdf'));
     expect(generate).toBeEnabled();
-    expect(generate.closest('label')).not.toHaveTextContent('Alege întâi testul');
+    expect(generate).not.toHaveAccessibleDescription();
+    expect(screen.queryByText('„Din test” se poate după ce alegi testul.')).not.toBeInTheDocument();
   });
 
   it('moves to Mai târziu when the test file it would generate from is refused', async () => {
@@ -131,10 +169,10 @@ describe('NewTestPage', () => {
     await user.selectOptions(await screen.findByLabelText('Clasa'), '1');
     await user.type(screen.getByLabelText('Titlul testului'), 'Fracții');
     await user.upload(testField(), pdf('Test.pdf'));
-    await user.click(choice(/^Generează baremul din test/));
+    await user.click(choice('Din test'));
     await user.upload(testField(), new File(['x'], 'notes.txt', { type: 'text/plain' }));
-    expect(choice(/^Mai târziu/)).toBeChecked();
-    expect(choice(/^Generează baremul din test/)).toBeDisabled();
+    expect(choice('Mai târziu')).toBeChecked();
+    expect(choice('Din test')).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Creează testul' }));
     await expectLocation('/tests/6E2-26T1');
     expect(api.uploadTestFile).not.toHaveBeenCalled();
@@ -146,10 +184,10 @@ describe('NewTestPage', () => {
     renderAdmin('/tests/new', api, <LocationProbe />);
     await fillClassAndTitle();
     await userEvent.upload(baremField(), pdf('Barem.pdf'));
-    await userEvent.click(choice(/^Mai târziu/));
-    await userEvent.click(choice(/^Încarc baremul acum/));
+    await userEvent.click(choice('Mai târziu'));
+    await userEvent.click(choice('Fișier'));
     expect(baremField().closest('.file-drop-field')).toHaveTextContent('Barem.pdf');
-    await userEvent.click(choice(/^Mai târziu/));
+    await userEvent.click(choice('Mai târziu'));
     await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
     await expectLocation('/tests/6E2-26T1');
     expect(api.uploadTestFile).not.toHaveBeenCalled();
@@ -214,7 +252,8 @@ describe('NewTestPage', () => {
       expect(screen.getByText('Se pregătesc pozele…')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Creează testul' })).toBeDisabled();
       await act(async () => decoded({ width: 800, height: 600, close: () => undefined }));
-      expect(await screen.findByText('IMG_1.pdf, din 1 poză')).toBeInTheDocument();
+      expect(await screen.findByText('IMG_1.pdf')).toBeInTheDocument();
+      expect(screen.getByText('Din 1 poză')).toBeInTheDocument();
       const create = screen.getByRole('button', { name: 'Creează testul' });
       expect(create).toBeEnabled();
       await userEvent.click(create);
@@ -242,7 +281,7 @@ describe('NewTestPage', () => {
     renderAdmin('/tests/new', api, <LocationProbe />);
     await fillClassAndTitle();
     await userEvent.upload(testField(), pdf('Test.pdf'));
-    await userEvent.click(choice(/^Generează baremul din test/));
+    await userEvent.click(choice('Din test'));
     await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
     await expectLocation('/tests/6E2-26T1 | Testul a fost creat, dar fișierul Test.pdf nu s-a încărcat: Fișierul are peste 25 MB.');
     expect(api.generateBarem).not.toHaveBeenCalled();
@@ -254,7 +293,7 @@ describe('NewTestPage', () => {
     renderAdmin('/tests/new', api, <LocationProbe />);
     await fillClassAndTitle();
     await userEvent.upload(testField(), pdf('Test.pdf'));
-    await userEvent.click(choice(/^Generează baremul din test/));
+    await userEvent.click(choice('Din test'));
     await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
     await expectLocation(
       '/tests/6E2-26T1 | Testul a fost creat, dar baremul nu s-a putut genera: Baremul se poate genera doar înainte de evaluare.',
@@ -277,6 +316,10 @@ describe('NewTestPage', () => {
     const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
     expect([stepTag(first), stepTag(second), stepTag(third)]).toEqual(['De completat', 'Poți și mai târziu', 'Poți și mai târziu']);
     for (const step of [first, second, third]) expect(step).not.toHaveClass('is-done');
+    // Only the test's "can wait" is shown; the others are for a screen reader.
+    expect(first.querySelector('.step-state')).toHaveClass('sr-only');
+    expect(second.querySelector('.step-state')).not.toHaveClass('sr-only');
+    expect(third.querySelector('.step-state')).toHaveClass('sr-only');
 
     // The class alone is not enough: the title is still to write.
     await userEvent.selectOptions(screen.getByLabelText('Clasa'), '1');
@@ -289,6 +332,7 @@ describe('NewTestPage', () => {
     await userEvent.upload(testField(), pdf('Test.pdf'));
     expect(stepTag(second)).toBe('Gata');
     expect(second).toHaveClass('is-done');
+    expect(second.querySelector('.step-state')).toHaveClass('sr-only');
     expect(stepTag(third)).toBe('Poți și mai târziu');
     await userEvent.upload(baremField(), pdf('Barem.pdf'));
     expect(stepTag(third)).toBe('Gata');
@@ -300,10 +344,10 @@ describe('NewTestPage', () => {
     await fillClassAndTitle();
     const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
     await userEvent.upload(testField(), pdf('Test.pdf'));
-    await userEvent.click(choice(/^Generează baremul din test/));
+    await userEvent.click(choice('Din test'));
     expect(stepTag(third)).toBe('Se va genera');
     expect(third).not.toHaveClass('is-done');
-    await userEvent.click(choice(/^Mai târziu/));
+    await userEvent.click(choice('Mai târziu'));
     expect(stepTag(third)).toBe('Poți și mai târziu');
     expect(third).not.toHaveClass('is-done');
   });
@@ -331,27 +375,48 @@ describe('NewTestPage, a class with a CES student', () => {
     });
   const missingItems = () => [...document.querySelectorAll('.missing-list li')].map((item) => item.textContent);
   const cesBaremChoices = () => within(screen.getByRole('group', { name: 'Baremul CES' }));
+  const cesBaremField = () => screen.getByLabelText(/^Fișierul baremului CES/);
 
-  it('shows the CES students and the switch, on, with the CES files beside the class ones', async () => {
+  it('shows the CES students and the switch, on, with the CES files under the class ones', async () => {
     renderAdmin('/tests/new', withCes());
     await fillClassAndTitle('2');
     const toggle = await screen.findByRole('switch', { name: 'Test separat pentru elevii cu CES' });
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText('Clasa are 1 elev cu CES')).toBeInTheDocument();
     expect(screen.getByText('Bursașiu Teodor')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: /^Testul CES/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: /^Baremul CES/ })).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Fișierul testului CES/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Testul clasei' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /^Testul CES/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Baremul clasei' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /^Baremul CES/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Fișierul testului CES/)).toHaveAccessibleName(/^Fișierul testului CES: Alege testul CES Tipărit cu același cod QR\./);
+    const testStep = stepOf(screen.getByRole('heading', { level: 2, name: 'Testul' }));
+    expect(testStep).toContainElement(screen.getByLabelText(/^Fișierul testului CES/));
   });
 
-  it('says that a generated CES barem comes as a proposal to check, like the class barem', async () => {
+  it('says that a generated CES barem starts from the class one and comes as a proposal to check', async () => {
     renderAdmin('/tests/new', withCes());
     await fillClassAndTitle('2');
     await screen.findByRole('switch');
-    expect(cesBaremChoices().getByRole('radio', { name: /^Generează baremul CES din testul CES/ }).closest('label')).toHaveTextContent(
-      'Pornește de la baremul clasei. Se generează în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.',
-    );
-    expect(cesBaremChoices().getByLabelText(/^Fișierul baremului CES/).closest('.choice-card')).not.toBeNull();
+    const generate = cesBaremChoices().getByRole('radio', { name: 'Din test' });
+    expect(generate).toBeDisabled();
+    expect(generate).toHaveAccessibleDescription('„Din test” se poate după ce alegi testul CES.');
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), pdf('Test adaptat.pdf'));
+    await userEvent.click(generate);
+    expect(cesBaremField()).not.toBeVisible();
+    expect(screen.getByText('Baremul CES se face din testul CES')).toBeInTheDocument();
+    expect(screen.getByText('Pornește de la baremul clasei. În câteva minute, apoi îl verifici înainte de corectare.')).toBeInTheDocument();
+  });
+
+  it('says the 90 points of the CES barem whatever its source, and that only the CES papers wait for it', async () => {
+    renderAdmin('/tests/new', withCes());
+    await fillClassAndTitle('2');
+    await screen.findByRole('switch');
+    const note = 'Doar pentru corectare: 90 de puncte și 10 din oficiu.';
+    expect(screen.getByText(note)).toBeInTheDocument();
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: 'Mai târziu' }));
+    expect(screen.getByText(note)).toBeInTheDocument();
+    expect(screen.getByText('Lucrările CES nu se corectează fără el.')).toBeInTheDocument();
+    expect(screen.queryByText('Corectarea nu începe fără barem.')).not.toBeInTheDocument();
   });
 
   it('shows no switch for a class without a CES student', async () => {
@@ -370,7 +435,7 @@ describe('NewTestPage, a class with a CES student', () => {
     expect(missingItems()).toEqual(['testul', 'baremul', 'testul CES', 'baremul CES']);
     expect(screen.getByText('Poți crea testul acum și le adaugi mai târziu.')).toBeInTheDocument();
     await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), pdf('Test adaptat.pdf'));
-    await userEvent.click(cesBaremChoices().getByRole('radio', { name: /^Generează baremul CES/ }));
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: 'Din test' }));
     expect(missingItems()).toEqual(['testul', 'baremul']);
   });
 
@@ -383,8 +448,8 @@ describe('NewTestPage, a class with a CES student', () => {
     const ces = pdf('Test adaptat.pdf');
     await userEvent.upload(screen.getByLabelText(/^Fișierul testului:/), test);
     await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), ces);
-    await userEvent.click(choice(/^Generează baremul din test/));
-    await userEvent.click(cesBaremChoices().getByRole('radio', { name: /^Generează baremul CES/ }));
+    await userEvent.click(choice('Din test'));
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: 'Din test' }));
     await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
 
     await expectLocation('/tests/9R2-26T1');
@@ -409,7 +474,7 @@ describe('NewTestPage, a class with a CES student', () => {
     expect(stepTag(second)).toBe('Gata');
     expect(second).toHaveClass('is-done');
     expect(stepTag(third)).toBe('Poți și mai târziu');
-    await userEvent.upload(cesBaremChoices().getByLabelText(/^Fișierul baremului CES/), pdf('Barem adaptat.pdf'));
+    await userEvent.upload(cesBaremField(), pdf('Barem adaptat.pdf'));
     expect(stepTag(third)).toBe('Gata');
     expect(third).toHaveClass('is-done');
 
@@ -424,7 +489,7 @@ describe('NewTestPage, a class with a CES student', () => {
     await fillClassAndTitle('2');
     await userEvent.click(await screen.findByRole('switch', { name: 'Test separat pentru elevii cu CES' }));
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
-    expect(screen.queryByRole('heading', { level: 2, name: /^Testul CES/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 3, name: /^Testul CES/ })).not.toBeInTheDocument();
     expect(missingItems()).toEqual(['testul', 'baremul']);
     await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
     await expectLocation('/tests/9R2-26T1');

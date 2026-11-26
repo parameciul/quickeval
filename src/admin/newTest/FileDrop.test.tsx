@@ -206,4 +206,64 @@ describe('FileDrop', () => {
       expect(onPick).not.toHaveBeenCalled();
     });
   });
+
+  describe('as a tile', () => {
+    function setupTile(makePdf?: MakePdf) {
+      const onPick = vi.fn();
+      const { container } = render(
+        <FileDrop id="drop" name="Fișierul testului" onPick={onPick} makePdf={makePdf} tile={{ title: 'Alege testul', hint: 'PDF, Word sau poze.' }} />,
+      );
+      return { onPick, tile: container.querySelector('.pick-tile')! };
+    }
+    const photo = (name: string) => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], name, { type: 'image/jpeg' });
+
+    it('says its title and hint, with the field name for a screen reader, and no drop area', () => {
+      const { tile } = setupTile();
+      expect(screen.getByLabelText(/^Fișierul testului/)).toHaveAccessibleName('Fișierul testului: Alege testul PDF, Word sau poze.');
+      expect(tile).not.toHaveClass('is-chosen');
+      expect(tile).not.toHaveTextContent('Alege alt fișier');
+      expect(document.querySelector('.file-drop')).toBeNull();
+    });
+
+    it('turns green with the file name once a file is picked', async () => {
+      const { onPick, tile } = setupTile();
+      const file = pdf('Test.pdf');
+      await userEvent.upload(screen.getByLabelText(/^Fișierul testului/), file);
+      expect(onPick).toHaveBeenLastCalledWith(file);
+      expect(tile).toHaveClass('is-chosen');
+      expect(screen.getByLabelText(/^Fișierul testului/)).toHaveAccessibleName('Fișierul testului: Test.pdf Alege alt fișier');
+    });
+
+    it('takes a dropped file and marks the tile while a file is over it', () => {
+      const { onPick, tile } = setupTile();
+      const file = pdf('Barem.pdf');
+      fireEvent.dragOver(tile, { dataTransfer: { files: [file] } });
+      expect(tile).toHaveClass('is-over');
+      fireEvent.drop(tile, { dataTransfer: { files: [file] } });
+      expect(tile).not.toHaveClass('is-over');
+      expect(onPick).toHaveBeenLastCalledWith(file);
+    });
+
+    it('marks a refused file and says why under the tile', () => {
+      const { onPick, tile } = setupTile();
+      fireEvent.drop(tile, { dataTransfer: { files: [text()] } });
+      expect(tile).toHaveClass('is-problem');
+      expect(tile).not.toHaveClass('is-chosen');
+      expect(screen.getByRole('alert')).toHaveTextContent('Încarcă un fișier PDF sau Word (.docx), ori poze JPG, PNG sau WebP.');
+      expect(onPick).toHaveBeenLastCalledWith(null);
+    });
+
+    it('waits while photos become a PDF, then says how many photos made it', async () => {
+      let end: (result: PicturesResult) => void = () => undefined;
+      const makePdf = vi.fn<MakePdf>(() => new Promise((resolve) => (end = resolve)));
+      const { tile } = setupTile(makePdf);
+      fireEvent.drop(tile, { dataTransfer: { files: [photo('IMG_1.jpg'), photo('IMG_2.jpg')] } });
+      expect(screen.getByRole('status')).toHaveTextContent('Se pregătesc pozele…');
+      expect(screen.getByLabelText(/^Fișierul testului/)).toBeDisabled();
+      await act(async () => end({ file: new File(['%PDF-1.4'], 'IMG_1.pdf', { type: PDF_TYPE }) }));
+      expect(tile).toHaveTextContent('IMG_1.pdf');
+      expect(tile).toHaveTextContent('Din 2 poze');
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
 });

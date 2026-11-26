@@ -310,11 +310,12 @@ The user picked one option per page on 2026-11-08 (decisions 29 to 39). The prot
 ### 11.7 "Test nou" (8c, `/admin/teste/nou`)
 
 - Its own page, as today. "Test nou" in the bar and on the Teste page lead to it; "Test nou pentru această clasă" leads to it with that class chosen. Above the title, the path "Teste › Test nou" (the old "← Toate testele" link is gone, as on the test page, the report and the student page), and the title "Test nou".
-- Left, a form of three numbered steps:
-  1. "Clasa și titlul", "Titlul îl văd și elevii, pe pagina lor.": "Clasa" (a select; "Nu e în listă? Clasă nouă" under it when no class was chosen) and "Titlul testului".
-  2. "Testul", "Fișierul pe care îl tipărești. PDF sau Word. Poți să-l adaugi și mai târziu.": a drop area, "Alege fișierul sau trage-l aici".
-  3. "Baremul", "După el se dă punctajul.": three choices. "Încarc baremul acum" ("PDF sau Word.", with its drop area under it); "Generează baremul din test" ("Primești o propunere în câteva minute. O verifici și o confirmi înainte de corectare."; it needs the test file); "Mai târziu" ("Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.").
-- Under the form: "Creează testul" (filled) and "Testul rămâne ciornă până apeși „Începe testul”." Then the test page opens, as today. The upload link is made with the test, as today. A generated barem starts the robot and stays unchecked until the teacher confirms it.
+- Left, one white sheet of three numbered steps, drawn with the controls of the Quick Try form (numbers in small circles, a tick once a step is done; one-line file tiles, green with the file's name once chosen; a pill switch):
+  1. "Clasa și titlul": "Clasa" (a select; "Nu e în listă? Clasă nouă" under it when no class was chosen) and "Titlul testului" ("Îl văd și elevii, pe pagina lor."), side by side.
+  2. "Testul" ("Poți și mai târziu" on its right while empty): a file tile, "Alege testul", "Cel pe care îl tipărești. PDF, Word sau poze. Îl poți trage aici."
+  3. "Baremul", with a switch on its right: "Fișier" (a file tile, "Alege baremul", "După el se dă punctajul. PDF, Word sau poze."), "Din test" (a grey tile "Baremul se face din test", "În câteva minute. Îl verifici și îl ajustezi înainte de corectare."; off until the test file is there, "„Din test” se poate după ce alegi testul." under the switch) and "Mai târziu" (a grey tile "Îl adaugi din pagina testului, la Pregătire", "Corectarea nu începe fără barem.").
+  With the CES switch on, each file step holds the class part and the CES part one under the other ("Testul clasei", "Testul CES"; "Baremul clasei", "Baremul CES" with "Doar pentru corectare: 90 de puncte și 10 din oficiu.", each with its own switch).
+- At the foot of the sheet, under what the test would still miss: "Testul rămâne ciornă până apeși „Începe testul”." and "Creează testul" (filled). Then the test page opens, as today. The upload link is made with the test, as today. A generated barem starts the robot and stays unchecked until the teacher confirms it.
 - Right, sticky: the card "După ce creezi testul": "Linkul elevilor e gata imediat" ("Testul primește linkul și codul QR din prima clipă, ca ciornă."), "Tipărești testul cu cod QR" ("Din ciornă, cu zile înainte. Fiecare pagină are codul."), "În ziua testului: Începe testul" ("Elevii scanează codul și trimit pozele. Fără cont și fără aplicație.").
 - On a phone: one column, the card under the form.
 

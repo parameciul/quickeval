@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
@@ -21,15 +21,15 @@ import { t } from '../../i18n/t.ts';
 // Where the barem comes from: a file now, the robot from the test, or later.
 type BaremChoice = 'upload' | 'generate' | 'later';
 
-// /tests/new (redesign spec §11.7): three numbered steps, the class and the
-// title, the test, and the barem, with what happens next on the side. The
-// barem's drop area sits in the card of its choice, and the test's in a frame
-// of the same size, so the two areas are equally wide.
+// /tests/new (redesign spec §11.7): one sheet of three numbered steps, drawn
+// with the controls of the Quick Try form: the class and the title side by
+// side, the test as a file tile, and the barem's source as a switch (Fișier,
+// Din test, Mai târziu) over its tile; what happens next is on the side.
 // ?class=<id> picks the class (the class page links here). The test and the
 // barem can come now or later; the test page holds them too. A class with a CES
 // student shows them and the CES switch, on by default (spec: CES switch); on,
-// the CES test and the CES barem sit beside the class ones. Under the button,
-// what the test would still miss.
+// the CES test and the CES barem sit under the class ones, in the same step.
+// Above the button, what the test would still miss.
 export function NewTestPage() {
   const api = useApi();
   const navigate = useNavigate();
@@ -149,42 +149,110 @@ export function NewTestPage() {
     !missing.includes('test') && !(withCes && missing.includes('cesTest')),
     baremThere && generating.length === 0,
   ];
-  const stepMark = (index: number) =>
-    stepDone[index] ? (
-      <span className="step-state tag tag-ok">{t('Gata')}</span>
-    ) : index === 0 ? (
-      <span className="step-state tag tag-wait">{t('De completat')}</span>
-    ) : index === 2 && baremThere ? (
-      <span className="step-state tag">{t('Se va genera')}</span>
-    ) : (
-      <span className="step-state tag">{t('Poți și mai târziu')}</span>
-    );
+  // Where each step stands, said once per step: a screen reader reads it after
+  // the heading. Only the test's "Poți și mai târziu" is shown; the number (a
+  // tick once done) and the tiles show the rest.
+  const stepMark = (index: number) => {
+    const word = stepDone[index]
+      ? t('Gata')
+      : index === 0
+        ? t('De completat')
+        : index === 2 && baremThere
+          ? t('Se va genera')
+          : t('Poți și mai târziu');
+    return <span className={index === 1 && !stepDone[index] ? 'step-state' : 'step-state sr-only'}>{word}</span>;
+  };
   const stepClass = (index: number) => (stepDone[index] ? 'step is-done' : 'step');
+  const stepNumber = (index: number) => (
+    <span className="step-num" aria-hidden="true">
+      {stepDone[index] ? TICK : index + 1}
+    </span>
+  );
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     create.mutate();
   };
 
-  const choiceOf = (group: 'barem' | 'ces-barem') => (value: BaremChoice, label: string, line: string, extra?: string) => (
-    <label className="choice">
-      <input
-        type="radio"
-        name={group}
-        value={value}
-        checked={(group === 'barem' ? barem : cesBarem) === value}
-        disabled={value === 'generate' && (group === 'barem' ? testFile : cesTestFile) === null}
-        onChange={() => (group === 'barem' ? setBarem(value) : setCesBarem(value))}
-      />
-      <span>
-        <b>{label}</b>
-        <span>{line}</span>
-        {extra && <span className="choice-extra">{extra}</span>}
-      </span>
-    </label>
-  );
-  const choice = choiceOf('barem');
-  const cesChoice = choiceOf('ces-barem');
+  // The barem's source, as a switch of three: a file, the robot from the test
+  // (only once the test file is there), or later.
+  const baremOf = (group: 'barem' | 'ces-barem') => {
+    const ces = group === 'ces-barem';
+    const current = ces ? cesBarem : barem;
+    const set = ces ? setCesBarem : setBarem;
+    const noTest = (ces ? cesTestFile : testFile) === null;
+    const noteId = `${group}-from-test`;
+    const labels: [BaremChoice, string][] = [
+      ['upload', t('Fișier')],
+      ['generate', t('Din test')],
+      ['later', t('Mai târziu')],
+    ];
+    const toggle = (
+      <fieldset className="seg">
+        <legend className="sr-only">{ces ? t('Baremul CES') : t('Baremul')}</legend>
+        {labels.map(([value, label]) => (
+          <label key={value}>
+            <input
+              type="radio"
+              name={group}
+              value={value}
+              checked={current === value}
+              disabled={value === 'generate' && noTest}
+              aria-describedby={value === 'generate' && noTest ? noteId : undefined}
+              onChange={() => set(value)}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </fieldset>
+    );
+    const note = noTest && (
+      <p className="seg-note" id={noteId}>
+        {ces ? t('„Din test” se poate după ce alegi testul CES.') : t('„Din test” se poate după ce alegi testul.')}
+      </p>
+    );
+    const body = (
+      <>
+        {/* Kept while another choice is made, so the file comes back with it. */}
+        <div hidden={current !== 'upload'}>
+          <FileDrop
+            id={ces ? 'new-ces-barem-file' : 'new-barem-file'}
+            name={ces ? t('Fișierul baremului CES') : t('Fișierul baremului')}
+            onPick={ces ? setCesBaremFile : setBaremFile}
+            onBusy={busyOf(ces ? 'cesBarem' : 'barem')}
+            tile={{
+              title: ces ? t('Alege baremul CES') : t('Alege baremul'),
+              hint: ces ? t('PDF, Word sau poze.') : t('După el se dă punctajul. PDF, Word sau poze.'),
+            }}
+          />
+        </div>
+        {current === 'generate' && (
+          <InfoTile
+            icon={FROM_TEST}
+            title={ces ? t('Baremul CES se face din testul CES') : t('Baremul se face din test')}
+            line={
+              ces
+                ? t('Pornește de la baremul clasei. În câteva minute, apoi îl verifici înainte de corectare.')
+                : t('În câteva minute. Îl verifici și îl ajustezi înainte de corectare.')
+            }
+          />
+        )}
+        {current === 'later' && (
+          <InfoTile
+            icon={LATER}
+            title={t('Îl adaugi din pagina testului, la Pregătire')}
+            line={ces ? t('Lucrările CES nu se corectează fără el.') : t('Corectarea nu începe fără barem.')}
+          />
+        )}
+      </>
+    );
+    return { toggle, note, body };
+  };
+  const classBarem = baremOf('barem');
+  const cesBaremParts = baremOf('ces-barem');
+
+  const testTile = { title: t('Alege testul'), hint: t('Cel pe care îl tipărești. PDF, Word sau poze. Îl poți trage aici.') };
+  const cesTestTile = { title: t('Alege testul CES'), hint: t('Tipărit cu același cod QR. PDF, Word sau poze.') };
 
   return (
     <section>
@@ -200,12 +268,17 @@ export function NewTestPage() {
       )}
       {open.length > 0 && (
         <div className="new-test">
-          <form onSubmit={onSubmit}>
+          <form className="new-test-form" onSubmit={onSubmit}>
             <ol className="steps">
               <li className={stepClass(0)}>
-                <div>
-                  <h2>{t('Clasa și titlul')}</h2>
-                  <p>{t('Titlul îl văd și elevii, pe pagina lor.')}</p>
+                <div className="step-head">
+                  <h2>
+                    {stepNumber(0)}
+                    {t('Clasa și titlul')}
+                  </h2>
+                  {stepMark(0)}
+                </div>
+                <div className="step-fields">
                   <div className="form-field">
                     <label htmlFor="test-class">{t('Clasa')}</label>
                     <select id="test-class" value={selected} onChange={(event) => setClassId(event.target.value)} required>
@@ -234,11 +307,14 @@ export function NewTestPage() {
                       onChange={(event) => setTitle(event.target.value)}
                       placeholder={t('de exemplu Test de evaluare inițială')}
                       maxLength={MAX_TITLE_LENGTH}
+                      aria-describedby="test-title-hint"
                       required
                     />
+                    <span className="form-hint" id="test-title-hint">
+                      {t('Îl văd și elevii, pe pagina lor.')}
+                    </span>
                   </div>
                 </div>
-                {stepMark(0)}
               </li>
               {cesNames.length > 0 && (
                 <li className="new-test-ces">
@@ -246,89 +322,79 @@ export function NewTestPage() {
                 </li>
               )}
               <li className={stepClass(1)}>
-                <div className={withCes ? 'step-pair' : undefined}>
-                  <div>
-                    <h2>{t('Testul')}</h2>
-                    <p>{t('Fișierul pe care îl tipărești. PDF, Word sau poze. Poți să-l adaugi și mai târziu.')}</p>
-                    <div className="file-frame">
-                      <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} />
+                <div className="step-head">
+                  <h2>
+                    {stepNumber(1)}
+                    {t('Testul')}
+                  </h2>
+                  {stepMark(1)}
+                </div>
+                {withCes ? (
+                  <>
+                    <div className="step-part">
+                      <h3>{t('Testul clasei')}</h3>
+                      <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} tile={testTile} />
                     </div>
-                  </div>
-                  {withCes && (
-                    <div>
-                      <h2>
+                    <div className="step-part">
+                      <h3>
                         {t('Testul CES')}
                         <CesTag />
-                      </h2>
-                      <p>{t('Testul elevilor cu CES, tipărit cu același cod QR. Poți să-l adaugi și mai târziu.')}</p>
-                      <div className="file-frame">
-                        <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} onBusy={busyOf('cesTest')} />
-                      </div>
+                      </h3>
+                      <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} onBusy={busyOf('cesTest')} tile={cesTestTile} />
                     </div>
-                  )}
-                </div>
-                {stepMark(1)}
+                  </>
+                ) : (
+                  <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} tile={testTile} />
+                )}
               </li>
               <li className={stepClass(2)}>
-                <div className={withCes ? 'step-pair' : undefined}>
-                  <div>
-                    <h2>{t('Baremul')}</h2>
-                    <p>{t('După el se dă punctajul.')}</p>
-                    <fieldset className="choices">
-                      <legend className="sr-only">{t('Baremul')}</legend>
-                      <div className="choice-card">
-                        {choice('upload', t('Încarc baremul acum'), t('PDF, Word sau poze.'))}
-                        {/* Kept while another choice is made, so the file comes back with it. */}
-                        <div className="choice-drop" hidden={barem !== 'upload'}>
-                          <FileDrop id="new-barem-file" name={t('Fișierul baremului')} onPick={setBaremFile} onBusy={busyOf('barem')} />
-                        </div>
-                      </div>
-                      {choice(
-                        'generate',
-                        t('Generează baremul din test'),
-                        t('Baremul se generează din test în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.'),
-                        testFile === null ? t('Alege întâi testul, la pasul 2.') : undefined,
-                      )}
-                      {choice('later', t('Mai târziu'), t('Îl adaugi din pagina testului, la Pregătire. Corectarea nu începe fără barem.'))}
-                    </fieldset>
-                  </div>
-                  {withCes && (
-                    <div>
-                      <h2>
-                        {t('Baremul CES')}
-                        <CesTag />
-                      </h2>
-                      <p>{t('Doar pentru corectare: 90 de puncte și 10 din oficiu.')}</p>
-                      <fieldset className="choices">
-                        <legend className="sr-only">{t('Baremul CES')}</legend>
-                        <div className="choice-card">
-                          {cesChoice('upload', t('Încarc baremul CES acum'), t('PDF, Word sau poze.'))}
-                          <div className="choice-drop" hidden={cesBarem !== 'upload'}>
-                            <FileDrop id="new-ces-barem-file" name={t('Fișierul baremului CES')} onPick={setCesBaremFile} onBusy={busyOf('cesBarem')} />
-                          </div>
-                        </div>
-                        {cesChoice(
-                          'generate',
-                          t('Generează baremul CES din testul CES'),
-                          t('Pornește de la baremul clasei. Se generează în câteva minute, iar apoi îl poți revizui și ajusta înainte de corectare.'),
-                          cesTestFile === null ? t('Alege întâi testul CES, la pasul 2.') : undefined,
-                        )}
-                        {cesChoice('later', t('Mai târziu'), t('Îl adaugi din pagina testului, la Pregătire. Lucrările CES nu se corectează fără el.'))}
-                      </fieldset>
-                    </div>
-                  )}
+                <div className="step-head">
+                  <h2>
+                    {stepNumber(2)}
+                    {t('Baremul')}
+                  </h2>
+                  {stepMark(2)}
+                  {!withCes && classBarem.toggle}
                 </div>
-                {stepMark(2)}
+                {withCes ? (
+                  <>
+                    <div className="step-part">
+                      <div className="step-part-head">
+                        <h3>{t('Baremul clasei')}</h3>
+                        {classBarem.toggle}
+                      </div>
+                      {classBarem.note}
+                      {classBarem.body}
+                    </div>
+                    <div className="step-part">
+                      <div className="step-part-head">
+                        <h3>
+                          {t('Baremul CES')}
+                          <CesTag />
+                        </h3>
+                        {cesBaremParts.toggle}
+                      </div>
+                      <p className="step-part-note">{t('Doar pentru corectare: 90 de puncte și 10 din oficiu.')}</p>
+                      {cesBaremParts.note}
+                      {cesBaremParts.body}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {classBarem.note}
+                    {classBarem.body}
+                  </>
+                )}
               </li>
             </ol>
+            {selected !== '' && <MissingList missing={missing} lead={t('Încă')} after={t('Poți crea testul acum și le adaugi mai târziu.')} />}
             <div className="new-test-foot">
+              <span className="form-hint">{t('Testul rămâne ciornă până apeși „Începe testul”.')}</span>
               <button className="button button-big" type="submit" disabled={create.isPending || selected === '' || preparing.size > 0}>
                 <ActionIcon name="add" />
                 {create.isPending ? t('Se creează…') : t('Creează testul')}
               </button>
-              <span className="form-hint">{t('Testul rămâne ciornă până apeși „Începe testul”.')}</span>
             </div>
-            {selected !== '' && <MissingList missing={missing} lead={t('Încă')} after={t('Poți crea testul acum și le adaugi mai târziu.')} />}
             {create.error && <ErrorMessage error={create.error} />}
           </form>
 
@@ -380,3 +446,36 @@ export function NewTestPage() {
     </section>
   );
 }
+
+// A grey tile for a barem the teacher does not pick here: the robot makes it,
+// or it comes later. Drawn like the file tiles, with nothing to click.
+function InfoTile({ icon, title, line }: { icon: ReactNode; title: string; line: string }) {
+  return (
+    <div className="pick-tile is-info">
+      <span className="pick-tile-icon">{icon}</span>
+      <span className="pick-tile-text">
+        <b>{title}</b>
+        <small>{line}</small>
+      </span>
+    </div>
+  );
+}
+
+const TICK = (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+    <path d="M4.5 10.5l3.5 3.5 7.5-8" />
+  </svg>
+);
+const FROM_TEST = (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M4 2.75h7l3 3V9" />
+    <path d="M4 2.75v14.5h5" />
+    <path d="M11 13.5h6M14 10.5l3 3-3 3" />
+  </svg>
+);
+const LATER = (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <circle cx="10" cy="10" r="7.25" />
+    <path d="M10 6v4.25l2.75 1.75" />
+  </svg>
+);

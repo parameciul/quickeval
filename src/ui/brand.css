@@ -5577,9 +5577,10 @@ input[type="file"] {
   margin: 0.5rem 0 0;
 }
 
-/* "Test nou": the form of three numbered steps, and the card of what comes
-   next beside it, sticky under the top bar; one column below 73.75rem, where
-   the card goes under the form. */
+/* "Test nou": one sheet of three numbered steps, drawn with the controls of
+   the Quick Try form (landing.css: .step, .tile, .seg), and the card of what
+   comes next beside it, sticky under the top bar; one column below 73.75rem,
+   where the card goes under the form. */
 .new-test {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 22rem;
@@ -5587,231 +5588,376 @@ input[type="file"] {
   align-items: start;
 }
 
+.new-test-form {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.75rem 2rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--sheet);
+}
+
 .steps {
   display: grid;
-  gap: 1rem;
+  gap: 1.75rem;
   margin: 0;
   padding: 0;
   list-style: none;
-  counter-reset: step;
 }
 
 .step {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1.25rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-panel);
-  background: var(--sheet);
-  counter-increment: step;
-  position: relative;
+  gap: 0.625rem;
 }
 
-.step.is-done::before {
-  content: "\2713";
+/* The step's heading, with its number (a tick once done) and, on the right,
+   what the step can wait for or the barem's switch. */
+.step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.375rem;
+}
+
+.step-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.step-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 50%;
+  background: var(--ink-tint);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.step.is-done .step-num {
   background: var(--ink);
   color: var(--on-ink);
 }
 
-/* The step's tag sits at the top right, over the heading's line: the heading
-   under it stops short of it (the one heading, or the right one of a pair).
-   On a narrow screen the tag gets a line of its own above the step instead. */
+.step-num svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 .step-state {
-  position: absolute;
-  top: 1rem;
-  right: 1.25rem;
-}
-
-.step > div > h2,
-.step-pair > div:last-child > h2 {
-  padding-right: 8.5rem;
-}
-
-@media (max-width: 767px) {
-  .step-pair > div:first-child > h2 {
-    padding-right: 8.5rem;
-  }
-
-  .step-pair > div:last-child > h2 {
-    padding-right: 0;
-  }
-}
-
-@media (max-width: 30rem) {
-  .step {
-    padding-top: 2.75rem;
-  }
-
-  .step-state {
-    top: 0.875rem;
-  }
-
-  .step > div > h2,
-  .step-pair > div:first-child > h2,
-  .step-pair > div:last-child > h2 {
-    padding-right: 0;
-  }
-}
-
-.step::before {
-  content: counter(step);
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  background: var(--ink-tint);
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.step h2 {
-  margin: 0.2rem 0 0.25rem;
-  font-size: 1rem;
-}
-
-.step > div > p {
-  margin: 0 0 0.75rem;
   color: var(--muted);
   font-size: 0.875rem;
 }
 
-.step .form-field {
-  max-width: 34rem;
-  margin-bottom: 0.875rem;
+/* The class and the title, side by side; under each other on a phone. */
+.step-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 1rem;
 }
 
-.step .form-field:last-child {
-  margin-bottom: 0;
+.step-fields .form-field {
+  align-content: start;
+  margin: 0;
 }
 
-.step .form-field select {
+.step-fields select,
+.step-fields input {
   width: 100%;
 }
 
-/* The barem's three choices: the chosen one is tinted blue. */
-.choices {
+/* A class with a CES student: the class part and the CES part of a step, one
+   under the other, each with its small heading. */
+.step-part {
   display: grid;
   gap: 0.5rem;
-  max-width: 34rem;
+}
+
+.step-part + .step-part {
+  margin-top: 0.5rem;
+}
+
+.step-part h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.choice {
-  display: grid;
-  grid-template-columns: 1.25rem minmax(0, 1fr);
-  gap: 0.625rem;
-  padding: 0.75rem 0.875rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.choice:has(input:checked) {
-  border-color: var(--ink);
-  background: var(--ink-tint);
-}
-
-.choice:has(input:disabled) {
-  cursor: not-allowed;
-}
-
-.choice:has(input:disabled) b {
-  color: var(--muted);
-}
-
-.choice input {
-  margin: 0.2rem 0 0;
-  accent-color: var(--ink);
-}
-
-.choice b {
-  display: block;
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 
-.choice span span {
-  display: block;
+.step-part-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.375rem;
+}
+
+.step-part-note {
+  margin: 0;
   color: var(--muted);
   font-size: 0.8125rem;
 }
 
-.choice .choice-extra {
-  color: var(--text);
-}
-
-/* "Încarc baremul acum" with its drop area: one card, blue while chosen. The
-   test's drop area sits in a frame of the same size (.file-frame), so the
-   two drop areas are equally wide. */
-.choice-card,
-.file-frame {
-  display: grid;
-  gap: 0.625rem;
-  max-width: 34rem;
-  padding: 0.75rem 0.875rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--sheet);
-}
-
-.choice-card:has(input:checked) {
-  border-color: var(--ink);
-  background: var(--ink-tint);
-}
-
-.choice-card > .choice {
-  padding: 0;
-  border: 0;
-  background: none;
-}
-
-.choice-card .file-drop,
-.file-frame .file-drop {
-  max-width: none;
-}
-
-.choice-card .file-drop {
-  background: var(--sheet);
-}
-
-/* A class with a CES student (spec: CES switch): the switch between the first
-   step and the files, and the CES files beside the class ones, under them on a
-   narrow screen. */
 .new-test-ces .ces-switch {
   max-width: none;
   margin: 0;
   background: var(--sheet);
 }
 
-.step-pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
+/* The barem's source: a switch of three radios drawn as one pill. The chosen
+   one is a raised white pill; the off one is faded, and its reason is right
+   under the switch. */
+.seg {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--active);
 }
 
-@media (max-width: 767px) {
-  .step-pair {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.seg label {
+  position: relative;
+  margin: 0;
 }
 
-.step-pair > div > p {
-  margin: 0 0 0.75rem;
+.seg input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.seg label > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
   color: var(--muted);
   font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.seg label:hover > span {
+  color: var(--text);
+}
+
+.seg input:checked + span {
+  background: var(--sheet);
+  box-shadow: 0 0 0 1px var(--control);
+  color: var(--text);
+}
+
+.seg input:disabled + span {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.seg label:hover > input:disabled + span {
+  color: var(--muted);
+}
+
+.seg input:focus-visible + span {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.seg-note {
+  margin: -0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+/* A file tile (FileDrop with `tile`) and the grey tile of a barem that is not
+   picked here: one line, an icon, the name and a hint; green once a file is
+   chosen, blue and dashed while a file is dragged over it. */
+.pick-tile {
+  display: grid;
+  grid-template-columns: 1.375rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  min-height: 4rem;
+  padding: 0.625rem 0.875rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 10px;
+  background: var(--sheet);
+  color: var(--text);
+  font-weight: 400;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.pick-tile > * {
+  pointer-events: none;
+}
+
+label.pick-tile:hover,
+.pick-tile.is-over {
+  border-color: var(--ink);
+  background: var(--ink-tint);
+}
+
+.pick-tile.is-over {
+  border-style: dashed;
+}
+
+.pick-tile-icon {
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.pick-tile-icon svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+.pick-tile-text {
+  min-width: 0;
+}
+
+.pick-tile-text b {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.pick-tile-text small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.pick-tile-go {
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pick-tile.is-chosen {
+  border-color: var(--ok-fg);
+  background: var(--ok-bg);
+}
+
+.pick-tile.is-chosen .pick-tile-icon {
+  color: var(--ok-fg);
+}
+
+.pick-tile.is-problem {
+  border-color: var(--error-fg);
+}
+
+.file-drop-field input:focus-visible + .pick-tile {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.file-drop-field input:disabled + .pick-tile {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.pick-tile.is-info,
+.pick-tile.is-info:hover {
+  border-color: transparent;
+  background: var(--active);
+  cursor: default;
+}
+
+.file-drop-field > .hint {
+  margin: 0.375rem 0 0;
+}
+
+.new-test-form .missing-list {
+  max-width: none;
+  margin: 0;
 }
 
 .new-test-foot {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
   gap: 0.75rem 1rem;
-  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.new-test-form > .alert {
+  margin: 0;
+}
+
+@media (max-width: 40rem) {
+  .new-test-form {
+    gap: 1.25rem;
+    padding: 1.125rem 1rem;
+  }
+
+  .steps {
+    gap: 1.375rem;
+  }
+
+  .step-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .step-head,
+  .step-part-head {
+    flex-wrap: wrap;
+  }
+
+  .seg {
+    display: flex;
+    width: 100%;
+  }
+
+  .seg label {
+    flex: 1;
+  }
+
+  .seg label > span {
+    width: 100%;
+    padding: 0 0.5rem;
+  }
+
+  .seg-note {
+    text-align: left;
+  }
+
+  .pick-tile {
+    grid-template-columns: 1.375rem minmax(0, 1fr);
+    row-gap: 0.25rem;
+  }
+
+  .pick-tile-go {
+    grid-column: 2;
+  }
+
+  .new-test-foot .button {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
 }
 
 .new-test-side {

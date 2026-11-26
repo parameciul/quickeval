@@ -132,8 +132,9 @@ describe('brand.css', () => {
     expect(value(declarations('.test-sheet input'), 'font-size')).toBe('1rem');
   });
 
-  it('ticks a done step of Test nou with a CSS escape, so the file stays ASCII there', () => {
-    expect(value(declarations('.step.is-done::before'), 'content')).toBe('"\\2713"');
+  it('fills the number of a done step of Test nou in blue, like the ticks of Starea testului', () => {
+    expect(value(declarations('.step.is-done .step-num'), 'background')).toBe('var(--ink)');
+    expect(value(declarations('.new-test-state li.is-done .state-mark'), 'background')).toBe('var(--ink)');
   });
 
   it('keeps room under a focused control for the sticky bar at the foot of the test page, only on a page with it', () => {
