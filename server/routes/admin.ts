@@ -13,6 +13,7 @@ import { studentRoutes } from './students.ts';
 import { submissionRoutes } from './submissions.ts';
 import { testRoutes } from './tests.ts';
 import { usageRoutes } from './usage.ts';
+import { markSeen } from '../db/accounts.ts';
 import { dataVersion } from '../db/version.ts';
 import type { DataVersion, MeAnswer } from '../../shared/api.ts';
 
@@ -21,7 +22,13 @@ import type { DataVersion, MeAnswer } from '../../shared/api.ts';
 export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   routes.use('*', sameOriginWrites, teacherAuth(), viewReadOnly, promoteDue(options));
-  routes.get('/me', (c) => c.json({ teacher: c.var.teacher, viewing: c.var.viewing?.viewing ?? null } satisfies MeAnswer));
+  // The app asks /me when it loads and again as its pages mount: the
+  // account's last use (Setări), written at most once an hour. While an administrator views a teacher's account, the use is
+  // the administrator's own, never the viewed teacher's.
+  routes.get('/me', async (c) => {
+    await markSeen(c.env.DB, c.var.viewing?.adminId ?? c.var.teacher.id, nowIso());
+    return c.json({ teacher: c.var.teacher, viewing: c.var.viewing?.viewing ?? null } satisfies MeAnswer);
+  });
   // The teacher app asks this every minute and reads its pages again only when
   // it changed. It also runs promoteDue, which starts the scheduled tests.
   // A live view adds its id as a fourth part, so the page reads again when a

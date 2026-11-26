@@ -72,6 +72,7 @@ interface AccountRow extends TeacherRow {
   created_at: string;
   approved_at: string | null;
   last_login_at: string | null;
+  last_seen_at: string | null;
   barems_generated: number;
   exercise_lists_made: number;
   analyses_made: number;
@@ -85,7 +86,7 @@ export const TEACHER_COLUMNS = `t.id, t.email, t.name, t.role, t.demo, t.tests_e
 
 // The columns of an account, beside the teacher's: the history of its state
 // and the robot work it made outside grading.
-const ACCOUNT_COLUMNS = `${TEACHER_COLUMNS}, t.status, t.created_at, t.approved_at, t.last_login_at,
+const ACCOUNT_COLUMNS = `${TEACHER_COLUMNS}, t.status, t.created_at, t.approved_at, t.last_login_at, t.last_seen_at,
   t.barems_generated, t.exercise_lists_made, t.analyses_made, t.prints_made`;
 
 export function toTeacher(row: TeacherRow): Teacher {
@@ -109,6 +110,7 @@ function toAccount(row: AccountRow): Account {
     createdAt: row.created_at,
     approvedAt: row.approved_at,
     lastLoginAt: row.last_login_at,
+    lastSeenAt: row.last_seen_at,
     baremsGenerated: row.barems_generated,
     exerciseListsMade: row.exercise_lists_made,
     analysesMade: row.analyses_made,
@@ -272,13 +274,13 @@ export interface NewSession {
 // so the teacher's logins never lift a lock that someone else's guesses set.
 // A browser that was not known becomes known. The IP gets its attempt back,
 // and the windows of IPs that ended are deleted. The account keeps the time of
-// this login (Setări shows it), which outlives its sessions.
+// this login (Setări shows it), which outlives its sessions, and its last use.
 export async function createSession(db: D1Database, session: NewSession, now: string): Promise<void> {
   const { teacherId, tokenHash, expiresAt, device, ipHash } = session;
   await db.batch([
     ...(ipHash ? [db.prepare('UPDATE login_ips SET attempts = MAX(attempts - 1, 0) WHERE ip_hash = ?').bind(ipHash)] : []),
     db.prepare('DELETE FROM login_ips WHERE window_start <= ?').bind(msBefore(now, IP_WINDOW_MS)),
-    db.prepare('UPDATE teachers SET last_login_at = ? WHERE id = ?').bind(now, teacherId),
+    db.prepare('UPDATE teachers SET last_login_at = ?, last_seen_at = ? WHERE id = ?').bind(now, now, teacherId),
     device.known
       ? db.prepare('UPDATE trusted_devices SET failed_logins = 0, last_used_at = ? WHERE token_hash = ?').bind(now, device.hash)
       : db.prepare('UPDATE teachers SET failed_logins = 0, locked_until = NULL WHERE id = ?').bind(teacherId),
@@ -294,6 +296,19 @@ export async function createSession(db: D1Database, session: NewSession, now: st
       .prepare('INSERT INTO sessions (token_hash, teacher_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
       .bind(tokenHash, teacherId, now, expiresAt),
   ]);
+}
+
+// How often a read of /me writes the account's last use (`last_seen_at`).
+export const SEEN_EVERY_MS = 60 * 60 * 1000;
+
+// The account used the app now: written at most once in SEEN_EVERY_MS, the
+// check in the UPDATE itself. No trigger reads the column, so this write
+// leaves the account's history and the data version alone.
+export async function markSeen(db: D1Database, teacherId: number, now: string): Promise<void> {
+  await db
+    .prepare('UPDATE teachers SET last_seen_at = ? WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at <= ?)')
+    .bind(now, teacherId, msBefore(now, SEEN_EVERY_MS))
+    .run();
 }
 
 export async function deleteSession(db: D1Database, tokenHash: string): Promise<void> {

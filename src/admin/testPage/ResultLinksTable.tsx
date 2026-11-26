@@ -11,6 +11,9 @@ import { CesTag } from '../CesTag.tsx';
 import { CopyRefused, useCopyLink } from '../CopyLink.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { GradeChip } from './GradeChip.tsx';
+import { SortHeader, SortSelect, useTableSort } from './TableSort.tsx';
+import { sortRows, type SortKey } from './tableSort.ts';
+import { CARDS, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
 
@@ -38,7 +41,9 @@ export function linksCount(uploads: UploadRow[], testResultsOpen: boolean): { te
 // the result is published. Only a graded paper can be published alone; one
 // already published can be stopped, also while it is graded again. While the
 // test publishes every result, a row cannot be stopped alone: "Oprește
-// accesul la rezultate" stops them all.
+// accesul la rezultate" stops them all. A column's name sorts the rows
+// (TableSort.tsx; on a phone, the select above the cards), and a student's
+// name opens the paper.
 export function ResultLinksTable({
   code,
   uploads,
@@ -54,27 +59,34 @@ export function ResultLinksTable({
   started?: boolean;
   onChanged: () => Promise<void>;
 }) {
+  const cards = useMediaQuery(CARDS);
+  const [sort, setSort] = useTableSort('results');
   if (uploads.length === 0) return <p className="hint">{t('Clasa nu are elevi. Adaugă-i din pagina clasei.')}</p>;
+  const columns: Partial<Record<SortKey, string>> = { name: t('Elev'), grade: t('Nota'), points: t('Punctaj'), published: t('Stare') };
+  const header = (key: SortKey) => <SortHeader label={columns[key]!} sortKey={key} sort={sort} onSort={setSort} cards={cards} />;
   return (
-    <div className="table-wrap uploads-wrap">
-      <table className="uploads result-links">
-        <caption className="sr-only">{t('Linkurile cu rezultatele elevilor')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t('Elev')}</th>
-            <th scope="col">{t('Nota')}</th>
-            <th scope="col">{t('Punctaj')}</th>
-            <th scope="col">{t('Linkul cu rezultatul')}</th>
-            <th scope="col">{t('Stare')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {uploads.map((row) => (
-            <ResultLinkRow key={row.studentId} code={code} row={row} testResultsOpen={resultsOpen} started={started} onChanged={onChanged} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      {cards && <SortSelect table="results" sort={sort} onSort={setSort} columns={columns} />}
+      <div className="table-wrap uploads-wrap">
+        <table className="uploads result-links">
+          <caption className="sr-only">{t('Linkurile cu rezultatele elevilor')}</caption>
+          <thead>
+            <tr>
+              {header('name')}
+              {header('grade')}
+              {header('points')}
+              <th scope="col">{t('Linkul cu rezultatul')}</th>
+              {header('published')}
+            </tr>
+          </thead>
+          <tbody>
+            {sortRows(uploads, sort).map((row) => (
+              <ResultLinkRow key={row.studentId} code={code} row={row} testResultsOpen={resultsOpen} started={started} onChanged={onChanged} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

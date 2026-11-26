@@ -90,6 +90,7 @@ export function fakeAccount(overrides: Partial<Account> = {}): Account {
     createdAt: '2026-10-06T08:00:00.000Z',
     approvedAt: null,
     lastLoginAt: null,
+    lastSeenAt: null,
     baremsGenerated: 0,
     exerciseListsMade: 0,
     analysesMade: 0,

@@ -490,6 +490,9 @@ export interface Account extends Teacher {
   approvedAt: string | null;
   // The last good login; null while the account never logged in.
   lastLoginAt: string | null;
+  // The last time the account opened the teacher app (at most an hour off);
+  // null while it never did since this was kept.
+  lastSeenAt: string | null;
   // Robot work outside the grading of papers (the class and CES variants
   // together): barems generated from the test file, exercise lists, class
   // analyses, and print PDFs with the QR code.

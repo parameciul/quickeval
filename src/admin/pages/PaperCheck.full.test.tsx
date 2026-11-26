@@ -11,6 +11,7 @@ afterEach(() => {
 
 const box = () => document.querySelector<HTMLElement>('figure.review-photo')!;
 const fullButton = () => screen.getByRole('button', { name: 'Pe tot ecranul' });
+const fitButton = () => screen.getByRole('button', { name: 'Potrivește în fereastră' });
 
 describe('the paper over the whole screen', () => {
   it('opens with "Pe tot ecranul" and closes with the ×', async () => {
@@ -22,7 +23,10 @@ describe('the paper over the whole screen', () => {
 
     await userEvent.click(fullButton());
     expect(box()).toHaveClass('is-full');
-    expect(fullButton()).toHaveAttribute('aria-pressed', 'true');
+    // Over the whole screen the × closes it: "Potrivește în fereastră" takes
+    // the button's place, and the focus.
+    expect(screen.queryByRole('button', { name: 'Pe tot ecranul' })).not.toBeInTheDocument();
+    expect(fitButton()).toHaveFocus();
     expect(document.documentElement).toHaveClass('has-full-paper');
     // One × only: it leaves the whole screen, it does not hide the paper.
     expect(screen.queryByRole('button', { name: 'Ascunde lucrarea' })).not.toBeInTheDocument();
@@ -33,17 +37,40 @@ describe('the paper over the whole screen', () => {
     expect(fullButton()).toHaveFocus();
   });
 
-  it('closes with the button again, or with Esc', async () => {
+  it('closes with Esc', async () => {
     renderAdmin(ION_I3, apiWith(framed()));
     await screen.findByText('Ion Popa · 1/2');
-    await userEvent.click(fullButton());
-    await userEvent.click(fullButton());
-    expect(box()).not.toHaveClass('is-full');
-
     await userEvent.click(fullButton());
     await userEvent.keyboard('{Escape}');
     expect(box()).not.toHaveClass('is-full');
     expect(fullButton()).toHaveFocus();
+  });
+
+  it('fits the whole page in the window, or shows it as wide as the screen, and keeps the choice', async () => {
+    renderAdmin(ION_I3, apiWith(framed()));
+    await screen.findByText('Ion Popa · 1/2');
+    await userEvent.click(fullButton());
+    // It opens fitted.
+    expect(box()).toHaveClass('is-fit');
+    expect(fitButton()).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(fitButton());
+    expect(box()).not.toHaveClass('is-fit');
+    expect(box()).toHaveClass('is-full');
+    expect(fitButton()).toHaveAttribute('aria-pressed', 'false');
+    expect(localStorage.getItem('quickeval:paperFit')).toBe('width');
+    // The zoom still works on a page as wide as the screen.
+    await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
+    expect(layer().style.transform).not.toBe(WHOLE);
+    // Closed and opened again: as she left it.
+    await userEvent.keyboard('{Escape}');
+    await userEvent.keyboard('{Escape}');
+    expect(box()).not.toHaveClass('is-full');
+    expect(box()).not.toHaveClass('is-fit');
+    await userEvent.click(fullButton());
+    expect(box()).not.toHaveClass('is-fit');
+    await userEvent.click(fitButton());
+    expect(box()).toHaveClass('is-fit');
+    expect(localStorage.getItem('quickeval:paperFit')).toBe('fit');
   });
 
   it('closes with one Esc and keeps the zoom; the next Esc shows the whole page', async () => {
@@ -94,7 +121,7 @@ describe('the paper over the whole screen', () => {
     expect(start).toContainElement(screen.getByText('Ion Popa · 1/2'));
     expect(start).toContainElement(screen.getByRole('button', { name: 'Arată chenarul' }));
     expect(middle).toBe(screen.getByRole('button', { name: 'Ieși din ecranul complet' }));
-    expect(end).toContainElement(fullButton());
+    expect(end).toContainElement(fitButton());
     expect(end).toContainElement(screen.getByRole('group', { name: 'Paginile lucrării' }));
     // Its buttons work there.
     await userEvent.click(screen.getByRole('button', { name: 'Mărește' }));
@@ -235,7 +262,7 @@ describe('the paper over the whole screen', () => {
     expect(box().closest('.inline-photo')).toBeNull();
     expect(box()).toHaveClass('is-full');
     expect(document.documentElement).toHaveClass('has-full-paper');
-    expect(fullButton()).toHaveFocus();
+    expect(fitButton()).toHaveFocus();
     await userEvent.keyboard('{Escape}');
     expect(box()).not.toHaveClass('is-full');
     expect(document.documentElement).not.toHaveClass('has-full-paper');

@@ -211,6 +211,7 @@ describe('the accounts on Setări', () => {
       papersGraded: 20,
       papersWaiting: 2,
       lastLoginAt: '2026-10-27T10:00:00.000Z',
+      lastSeenAt: '2026-11-02T08:30:00.000Z',
       baremsGenerated: 4,
       exerciseListsMade: 2,
       analysesMade: 1,
@@ -276,7 +277,8 @@ describe('the accounts on Setări', () => {
     expect(stat('Teste corectate în ultimele 30 de zile')).toHaveTextContent('1 test');
     expect(stat('Lucrări corectate în ultimele 30 de zile')).toHaveTextContent('20 de lucrări');
     expect(stat('Spațiul lucrărilor')).toHaveTextContent('2 MB');
-    expect(stat('Ultima intrare')).toHaveTextContent('27 oct. 2026, 12:00');
+    expect(stat('Ultima activitate')).toHaveTextContent('2 nov. 2026, 10:30');
+    expect(stat('Ultima intrare cu parola')).toHaveTextContent('27 oct. 2026, 12:00');
 
     const history = panel.querySelector('.account-history')!;
     expect(within(history as HTMLElement).getAllByRole('listitem').map((item) => item.textContent)).toEqual([

@@ -85,6 +85,26 @@ export interface ReviewFocus {
 // sideways moves the paper from the open row to the column beside it, a new
 // box, which opens over the whole screen again. A PDF page closes it: Esc
 // typed in the PDF's own viewer never reaches the page.
+const FIT_KEY = 'quickeval:paperFit';
+
+// Whether the whole screen fits the page in the window: yes until the teacher
+// says otherwise in this browser.
+function savedFit(): boolean {
+  try {
+    return localStorage.getItem(FIT_KEY) !== 'width';
+  } catch {
+    return true;
+  }
+}
+
+function saveFit(on: boolean): void {
+  try {
+    localStorage.setItem(FIT_KEY, on ? 'fit' : 'width');
+  } catch {
+    // A browser that keeps nothing: the choice lasts while the page is open.
+  }
+}
+
 export function ReviewPhoto({
   submission,
   page,
@@ -124,6 +144,14 @@ export function ReviewPhoto({
   // page (none for a box that opened over the whole screen).
   const isFull = full && photo;
   const [spacer, setSpacer] = useState(0);
+  // Over the whole screen, "Potrivește în fereastră": the whole page between
+  // the bars (the start), or the page as wide as the screen, scrolling. Kept
+  // in this browser.
+  const [fit, setFit] = useState(savedFit);
+  const chooseFit = (on: boolean) => {
+    setFit(on);
+    saveFit(on);
+  };
   // The controls under the page, not beside the border's label.
   const below = touch || isFull;
 
@@ -228,7 +256,7 @@ export function ReviewPhoto({
     wasFull.current = isFull;
     if (!refocus.current && !closedByPage) return;
     refocus.current = false;
-    const own = box.current?.querySelector<HTMLElement>('.full-toggle') ?? box.current?.querySelector<HTMLElement>('.page-switch-button[aria-current="true"]');
+    const own = box.current?.querySelector<HTMLElement>('.full-toggle, .fit-toggle') ?? box.current?.querySelector<HTMLElement>('.page-switch-button[aria-current="true"]');
     own?.focus({ preventScroll: true });
   }, [isFull]);
   // A phone turned over the whole screen moves the × between the bar and the
@@ -473,14 +501,14 @@ export function ReviewPhoto({
   const groups = (
     <>
       <ViewGroup tools={tools} />
-      <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} />
+      <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} fit={fit} onFit={chooseFit} />
     </>
   );
   return (
     <>
       {/* The box's place in the page while it is over the whole screen. */}
       {isFull && <div className="review-photo-spacer" style={{ height: spacer }} aria-hidden="true" />}
-      <figure className={isFull ? 'review-photo is-full' : 'review-photo'} id={PAPER_PHOTO_ID} ref={box}>
+      <figure className={isFull ? (fit ? 'review-photo is-full is-fit' : 'review-photo is-full') : 'review-photo'} id={PAPER_PHOTO_ID} ref={box}>
         <div className={inHead ? 'review-photo-top has-tools' : 'review-photo-top'}>
           <div className="review-photo-start">
             <div className="review-photo-name">
@@ -499,7 +527,7 @@ export function ReviewPhoto({
               from the page buttons, which may be many. */}
           {isFull && !narrow && hide}
           <div className="review-photo-actions">
-            {inHead && <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} />}
+            {inHead && <ZoomGroup view={view} onView={setView} full={isFull} onFull={showFull} fit={fit} onFit={chooseFit} />}
             <PageDownload submission={submission} page={index} />
             {files.length > 1 && (
               <span className="page-switch" role="group" aria-label={t('Paginile lucrării')}>
@@ -534,6 +562,8 @@ export function ReviewPhoto({
             foot={footParts}
             full={isFull}
             onFull={showFull}
+            fit={fit}
+            onFit={chooseFit}
             buttons={place === 'bar'}
             barMiddle={isFull && narrow ? hide : undefined}
             tools={tools}
