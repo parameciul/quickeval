@@ -28,7 +28,7 @@ This spec replaces, where they disagree: the redesign spec `2026-11-04-mqgrader-
 The same box, with a checklist of what the stage needs (`ReadyList`, a list named "Ce așteaptă etapa"): the stage list's own dots (blue tick done, orange dot waiting on the teacher, filled blue in progress, grey clock later), the thing, its state, and "Mergi la <stage>" to the stage that does it (named "Mergi la <stage>: <thing>" for a screen reader). On Verificare the grading's row says "o pornești tu" (open, grey), "se corectează lucrările" (in progress, blue) or "s-a terminat fără nicio lucrare corectată" (done with none graded, ticked): the colours of the stage list. Rows: the test file, the barem, the CES test and barem while the class has a CES student and the switch is on, the test with the QR code (În clasă), "Testul început", "Lucrări trimise" or "Lucrări corectate". Under the box the stage keeps its frame with the data the page already has:
 
 - În clasă before the start: the checklist under "Începe testul", and "Poți începe oricum. Ce lipsește adaugi și după, la etapa Pregătire." while something waits. It never blocks the start.
-- Corectare: the papers bar and the papers table with every student ("Nu a trimis").
+- Corectare: the papers table with every student ("Nu a trimis"), under "Elevii" and its label (no bar since 2026-11-26).
 - Verificare: "De verificat" with a dashed place and one sentence.
 - Rezultate: the students' table ("Testul nu a început." on a draft) and "Raportul clasei" (which says it comes after the first grading).
 
