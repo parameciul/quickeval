@@ -324,8 +324,12 @@ describe('TestPage', () => {
     expect(within(pop).getByText('Trimis')).toBeInTheDocument();
     expect(within(pop).getByText('Fără confirmare')).toBeInTheDocument();
     expect(within(pop).getByText('6 oct. 2026, 10:40')).toBeInTheDocument();
-    expect(within(pop).getByRole('link', { name: 'Vezi lucrarea' })).toHaveAttribute('href', '/tests/6E2-26T1/papers/5');
+    // The name opens the paper; there is no other link to it.
+    expect(within(pop).getByRole('link', { name: 'Pop Ion' })).toHaveAttribute('href', '/tests/6E2-26T1/papers/5');
+    expect(within(pop).queryByRole('link', { name: 'Vezi lucrarea' })).not.toBeInTheDocument();
     const marin = screen.getByRole('rowheader', { name: 'Marin Dan' }).closest('tr')!;
+    // A student with no paper has a plain name.
+    expect(within(marin).queryByRole('link')).not.toBeInTheDocument();
     expect(within(marin).getByText('Nu a trimis')).toBeInTheDocument();
     expect(within(marin).queryByRole('button', { name: 'Mai multe pentru Marin Dan' })).not.toBeInTheDocument();
   });
@@ -464,6 +468,54 @@ describe('TestPage', () => {
     expect(within(screen.getByRole('menu')).queryByText(/Model:/)).not.toBeInTheDocument();
   });
 
+  it('sorts the papers by a column, and keeps the order for the next visit', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 6 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 9 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    const { unmount } = renderAdmin(`${PAGE}#grading`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const papers = await screen.findByRole('table', { name: 'Încărcările elevilor' });
+    const order = () => within(papers).getAllByRole('rowheader').map((cell) => cell.textContent);
+    expect(order()).toEqual(['Marin Dan', 'Pop Ion', 'Stan Eva']);
+    expect(within(papers).getByRole('columnheader', { name: 'Elev' })).toHaveAttribute('aria-sort', 'ascending');
+
+    await userEvent.click(within(papers).getByRole('button', { name: 'Nota' }));
+    expect(order()).toEqual(['Stan Eva', 'Pop Ion', 'Marin Dan']);
+    expect(within(papers).getByRole('columnheader', { name: 'Nota' })).toHaveAttribute('aria-sort', 'descending');
+    expect(within(papers).getByRole('columnheader', { name: 'Elev' })).not.toHaveAttribute('aria-sort');
+    await userEvent.click(within(papers).getByRole('button', { name: 'Nota' }));
+    // The student with no grade stays last.
+    expect(order()).toEqual(['Pop Ion', 'Stan Eva', 'Marin Dan']);
+    expect(localStorage.getItem('quickeval:papersSort')).toBe('grade-asc');
+
+    unmount();
+    renderAdmin(`${PAGE}#grading`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const again = await screen.findByRole('table', { name: 'Încărcările elevilor' });
+    expect(within(again).getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Pop Ion', 'Stan Eva', 'Marin Dan']);
+  });
+
+  it('sorts the students of Rezultate and links each name with a paper', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 6, total: 50, maxTotal: 90 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 9, total: 80, maxTotal: 90, resultsOpen: true }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    renderAdmin(`${PAGE}#results`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
+    const links = await screen.findByRole('table', { name: 'Linkurile cu rezultatele elevilor' });
+    const order = () => within(links).getAllByRole('rowheader').map((cell) => cell.textContent);
+    expect(order()).toEqual(['Marin Dan', 'Pop Ion', 'Stan Eva']);
+    expect(within(links).getByRole('link', { name: 'Stan Eva' })).toHaveAttribute('href', '/tests/6E2-26T1/papers/6');
+    expect(within(links).queryByRole('link', { name: 'Marin Dan' })).not.toBeInTheDocument();
+    await userEvent.click(within(links).getByRole('button', { name: 'Punctaj' }));
+    expect(order()).toEqual(['Stan Eva', 'Pop Ion', 'Marin Dan']);
+    await userEvent.click(within(links).getByRole('button', { name: 'Stare' }));
+    expect(order()).toEqual(['Stan Eva', 'Pop Ion', 'Marin Dan']);
+    // The papers table keeps its own order.
+    expect(localStorage.getItem('quickeval:resultsSort')).toBe('published-desc');
+    expect(localStorage.getItem('quickeval:papersSort')).toBeNull();
+  });
+
   it('keeps the result links and the publish buttons out of the papers table', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9, resultsOpen: true }),
@@ -472,7 +524,7 @@ describe('TestPage', () => {
     renderAdmin(`${PAGE}#grading`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done' }, rows)] }));
     const pop = (await screen.findByRole('rowheader', { name: 'Pop Ion' })).closest('tr')!;
     expect(within(pop).getByText('Publicat')).toBeInTheDocument();
-    expect(within(pop).getByRole('link', { name: 'Vezi lucrarea' })).toBeInTheDocument();
+    expect(within(pop).getByRole('link', { name: 'Pop Ion' })).toBeInTheDocument();
     for (const name of ['Link rezultat', 'Copiază linkul', 'Publică', 'Oprește publicarea']) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
     }
@@ -553,8 +605,8 @@ describe('TestPage', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderAdmin(`${PAGE}#in-class`, api);
     const stan = (await screen.findByRole('rowheader', { name: 'Stan Eva' })).closest('tr')!;
-    // Only the link to the paper and ⋯ show on the row.
-    expect(within(stan).getByRole('link', { name: 'Vezi lucrarea' })).toBeInTheDocument();
+    // Only the name's link to the paper and ⋯ show on the row.
+    expect(within(stan).getByRole('link', { name: 'Stan Eva' })).toBeInTheDocument();
     expect(within(stan).queryByRole('button', { name: 'Resetează' })).not.toBeInTheDocument();
     const more = within(stan).getByRole('button', { name: 'Mai multe pentru Stan Eva' });
     expect(more).toHaveAttribute('aria-haspopup', 'menu');

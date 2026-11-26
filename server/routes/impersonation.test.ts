@@ -70,6 +70,15 @@ describe('starting a view', () => {
     expect((await api.request('GET', '/api/admin/tests/9Z-26T1', undefined, cookies(session))).status).toBe(404);
   });
 
+  it("marks the administrator's last use, never the viewed teacher's", async () => {
+    await api.db.prepare('UPDATE teachers SET last_seen_at = NULL').run();
+    const view = cookieOf(await start(session), 'qe_view');
+    expect((await api.request('GET', '/api/admin/me', undefined, cookies(session, view))).body.teacher.id).toBe(anaId);
+    const seen = (email: string) => api.db.prepare('SELECT last_seen_at FROM teachers WHERE email = ?').bind(email).first<{ last_seen_at: string | null }>();
+    expect((await seen('ana@example.com'))!.last_seen_at).toBeNull();
+    expect((await seen(ADMIN))!.last_seen_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
   it('without the view cookie nothing changes', async () => {
     await start(session);
     const me = await api.request('GET', '/api/admin/me', undefined, cookies(session));

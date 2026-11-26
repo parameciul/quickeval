@@ -596,7 +596,9 @@ function AccountDetailView({ detail }: { detail: AccountDetail }) {
           <Stat label={t('Teste corectate în ultimele 30 de zile')} value={countLabel(activity.testsLast30Days, 'test', 'teste')} />
           <Stat label={t('Lucrări corectate în ultimele 30 de zile')} value={countLabel(activity.papersLast30Days, 'lucrare', 'lucrări')} />
           <Stat label={t('Spațiul lucrărilor')} value={activity.r2Bytes > 0 ? formatFileSize(activity.r2Bytes) : t('nimic')} />
-          <Stat label={t('Ultima intrare')} value={account.lastLoginAt ? formatDateTime(account.lastLoginAt) : t('niciodată')} />
+          {/* A login lasts 30 days: the last use says more than the last login. */}
+          <Stat label={t('Ultima activitate')} value={account.lastSeenAt ? formatDateTime(account.lastSeenAt) : t('niciodată')} />
+          <Stat label={t('Ultima intrare cu parola')} value={account.lastLoginAt ? formatDateTime(account.lastLoginAt) : t('niciodată')} />
         </dl>
         <p className="hint">
           {t('Baremele, listele de exerciții, analizele și testele pentru tipărire sunt operațiile robotului din afara corectării lucrărilor.')}

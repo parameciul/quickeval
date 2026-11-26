@@ -10,6 +10,9 @@ import { useSmallMenu } from '../shell/useSmallMenu.ts';
 import { GradeChip } from './GradeChip.tsx';
 import { heldBackHint, PAPER_PART_LABEL } from './paperCounts.ts';
 import { canSelect, selectableIds } from './selection.ts';
+import { SortHeader, SortSelect, useTableSort } from './TableSort.tsx';
+import { sortRows, type SortKey } from './tableSort.ts';
+import { CARDS, useMediaQuery } from '../../ui/useMediaQuery.ts';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
 import { translateMessage } from '../../../shared/i18n/messages.ts';
@@ -21,7 +24,9 @@ import { translateMessage } from '../../../shared/i18n/messages.ts';
 // uploads to grade now: one checkbox per row with files, and one in the header
 // for all of them. Every such upload starts checked; the teacher unchecks the
 // ones to grade later. The result links and their publishing are in the panel
-// Rezultate (ResultLinksTable), not here.
+// Rezultate (ResultLinksTable), not here. A column's name sorts the rows
+// (TableSort.tsx; on a phone, the select above the cards), and a student's
+// name opens the paper.
 export function UploadsTable({
   code,
   uploads,
@@ -52,62 +57,76 @@ export function UploadsTable({
   onChanged: () => Promise<void>;
   onRobot: (robot: RobotStart | null) => void;
 }) {
+  const cards = useMediaQuery(CARDS);
+  const [sort, setSort] = useTableSort('papers');
   if (uploads.length === 0) return <p className="hint">{t('Clasa nu are elevi. Adaugă-i din pagina clasei.')}</p>;
+  const columns: Partial<Record<SortKey, string>> = {
+    name: t('Elev'),
+    grade: t('Nota'),
+    state: t('Stare'),
+    files: t('Fișiere'),
+    time: t('Ora'),
+    check: t('De verificat'),
+  };
+  const header = (key: SortKey) => <SortHeader label={columns[key]!} sortKey={key} sort={sort} onSort={setSort} cards={cards} />;
   const eligibleIds = selectable ? selectableIds(uploads) : [];
   const allChecked = eligibleIds.length > 0 && eligibleIds.every((id) => selected.includes(id));
   const someChecked = eligibleIds.some((id) => selected.includes(id));
   return (
-    <div className="table-wrap uploads-wrap">
-      <table className={`uploads${selectable ? ' is-selectable' : ''}`}>
-        <caption className="sr-only">{t('Încărcările elevilor')}</caption>
-        <thead>
-          <tr>
-            {selectable && (
-              <th scope="col" className="select-col">
-                <label className="select-all">
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    ref={(input) => {
-                      if (input) input.indeterminate = !allChecked && someChecked;
-                    }}
-                    disabled={eligibleIds.length === 0}
-                    onChange={(event) => onSelect(event.target.checked ? eligibleIds : [])}
-                  />
-                  <span className="sr-only select-all-text">{t('Selectează toate lucrările cu fișiere')}</span>
-                </label>
+    <>
+      {cards && <SortSelect table="papers" sort={sort} onSort={setSort} columns={columns} />}
+      <div className="table-wrap uploads-wrap">
+        <table className={`uploads${selectable ? ' is-selectable' : ''}`}>
+          <caption className="sr-only">{t('Încărcările elevilor')}</caption>
+          <thead>
+            <tr>
+              {selectable && (
+                <th scope="col" className="select-col">
+                  <label className="select-all">
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      ref={(input) => {
+                        if (input) input.indeterminate = !allChecked && someChecked;
+                      }}
+                      disabled={eligibleIds.length === 0}
+                      onChange={(event) => onSelect(event.target.checked ? eligibleIds : [])}
+                    />
+                    <span className="sr-only select-all-text">{t('Selectează toate lucrările cu fișiere')}</span>
+                  </label>
+                </th>
+              )}
+              {header('name')}
+              {header('grade')}
+              {header('state')}
+              {header('files')}
+              {header('time')}
+              {header('check')}
+              <th scope="col">
+                <span className="sr-only">{t('Acțiuni')}</span>
               </th>
-            )}
-            <th scope="col">{t('Elev')}</th>
-            <th scope="col">{t('Nota')}</th>
-            <th scope="col">{t('Stare')}</th>
-            <th scope="col">{t('Fișiere')}</th>
-            <th scope="col">{t('Ora')}</th>
-            <th scope="col">{t('De verificat')}</th>
-            <th scope="col">
-              <span className="sr-only">{t('Acțiuni')}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {uploads.map((row) => (
-            <UploadTableRow
-              key={row.studentId}
-              code={code}
-              row={row}
-              showModel={showModel}
-              uploadsClosed={uploadsClosed}
-              uploadsPaused={uploadsPaused}
-              selectable={selectable}
-              checked={row.submissionId !== null && selected.includes(row.submissionId)}
-              onToggle={(id, checked) => onSelect(checked ? [...selected, id] : selected.filter((kept) => kept !== id))}
-              onChanged={onChanged}
-              onRobot={onRobot}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
+            </tr>
+          </thead>
+          <tbody>
+            {sortRows(uploads, sort).map((row) => (
+              <UploadTableRow
+                key={row.studentId}
+                code={code}
+                row={row}
+                showModel={showModel}
+                uploadsClosed={uploadsClosed}
+                uploadsPaused={uploadsPaused}
+                selectable={selectable}
+                checked={row.submissionId !== null && selected.includes(row.submissionId)}
+                onToggle={(id, checked) => onSelect(checked ? [...selected, id] : selected.filter((kept) => kept !== id))}
+                onChanged={onChanged}
+                onRobot={onRobot}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -209,7 +228,7 @@ function UploadTableRow({
         </td>
       )}
       <th scope="row">
-        {row.studentName}
+        {submissionId !== null ? <Link to={`/tests/${code}/papers/${submissionId}`}>{row.studentName}</Link> : row.studentName}
         {(row.ces || row.variant === 'ces') && <CesTag />}
         {!row.active && <span className="tag">{t('a plecat')}</span>}
       </th>
@@ -222,12 +241,13 @@ function UploadTableRow({
         {row.status === 'failed' && row.lastError && <p className="hint">{translateMessage(row.lastError)}</p>}
       </td>
       <td data-label={t('Fișiere')}>{row.fileCount}</td>
-      <td data-label={t('Ora')}>{time ? formatDateTime(time) : '—'}</td>
+      <td className="time-cell" data-label={t('Ora')}>
+        {time ? formatDateTime(time) : '—'}
+      </td>
       <td data-label={t('De verificat')}>{row.flagCount > 0 ? <span className="points-pill">{t('{flagCount} de verificat', { flagCount: row.flagCount })}</span> : '—'}</td>
       <td className="actions-cell">
         {submissionId !== null && startedAt !== null && (
           <span className="row-actions">
-            <Link to={`/tests/${code}/papers/${submissionId}`}>{t('Vezi lucrarea')}</Link>
             {row.status === 'failed' && (
               <button
                 type="button"
@@ -300,8 +320,8 @@ function UploadTableRow({
 
 type RowMenuItem = { label: string; danger?: boolean; busy: boolean; onChoose(): void };
 
-// A row's rarer actions under ⋯ (the link to the paper and "Reîncearcă" stay
-// on the row, so a row fits on one line), with `note` (the model) above them. The table scrolls sideways in its
+// A row's rarer actions under ⋯ ("Reîncearcă" and the unlock stay on the
+// row, so a row fits on one line; the name opens the paper), with `note` (the model) above them. The table scrolls sideways in its
 // box, which would cut off a menu inside it: the menu is fixed to the screen,
 // under ⋯ (or over it when the screen ends below), and closes when anything
 // scrolls or the screen changes size. An item closes the menu and gives the

@@ -28,7 +28,10 @@ import { t } from '../../i18n/t.ts';
 // never moves when the zoom changes.
 //
 // "Pe tot ecranul" (after the zoom's +, when the caller gives `onFull`) asks
-// the caller to show the page over the whole screen. There the hint stands in
+// the caller to show the page over the whole screen. There its place holds
+// "Potrivește în fereastră" (`fit`, `onFit`): the whole page between the bars,
+// or the page as wide as the screen; the × of the caller's header closes the
+// whole screen. There the hint stands in
 // the line under the page, also with a mouse: the page fills the screen's
 // width and scrolls inside `.zoom-scroll`, and buttons over its top corners
 // would scroll away with it. A caller with a header of its own draws the two
@@ -42,6 +45,8 @@ export function ZoomPhoto({
   foot,
   full = false,
   onFull,
+  fit = false,
+  onFit,
   buttons = true,
   barMiddle,
   children,
@@ -56,6 +61,10 @@ export function ZoomPhoto({
   // The page is over the whole screen; `onFull` turns it on and off.
   full?: boolean;
   onFull?: (on: boolean) => void;
+  // Over the whole screen: the whole page fits the window; `onFit` turns it
+  // on and off.
+  fit?: boolean;
+  onFit?: (on: boolean) => void;
   // False when the caller draws the two groups itself (`ViewGroup`,
   // `ZoomGroup`), in its own header: then none stands over or above the page.
   buttons?: boolean;
@@ -180,7 +189,7 @@ export function ZoomPhoto({
 
   const style = { '--page-ratio': ratio } as CSSProperties;
   const viewGroup = !buttons ? null : <ViewGroup tools={tools} />;
-  const zoomGroup = !buttons ? null : <ZoomGroup view={view} onView={onView} full={full} onFull={onFull} />;
+  const zoomGroup = !buttons ? null : <ZoomGroup view={view} onView={onView} full={full} onFull={onFull} fit={fit} onFit={onFit} />;
   const hintText = touch ? t('Atinge: mărește · ciupește: micșorează') : t('Clic stânga: mărește · clic dreapta: micșorează');
   const hint = zoomed ? null : <p className="zoom-hint">{hintText}</p>;
   const pagePane = (
@@ -264,8 +273,24 @@ export function ViewGroup({ tools }: { tools?: ReactNode }) {
   );
 }
 
-// The zoom: −, the level, + and, when the caller gives `onFull`, "Pe tot ecranul".
-export function ZoomGroup({ view, onView, full = false, onFull }: { view: ZoomView; onView: (view: ZoomView) => void; full?: boolean; onFull?: (on: boolean) => void }) {
+// The zoom: −, the level, + and, when the caller gives `onFull`, "Pe tot
+// ecranul"; over the whole screen, where the header's × closes it, "Potrivește
+// în fereastră" in its place when the caller gives `onFit`.
+export function ZoomGroup({
+  view,
+  onView,
+  full = false,
+  onFull,
+  fit = false,
+  onFit,
+}: {
+  view: ZoomView;
+  onView: (view: ZoomView) => void;
+  full?: boolean;
+  onFull?: (on: boolean) => void;
+  fit?: boolean;
+  onFit?: (on: boolean) => void;
+}) {
   return (
     <span className="zoom-controls" role="group" aria-label={t('Mărirea paginii')} onPointerDown={stop} onPointerUp={stop} onClick={stop}>
       <button type="button" className="button-quiet button-small" aria-label={t('Micșorează')} disabled={!isZoomed(view)} onClick={() => onView(zoomOutAt(view, 0.5, 0.5))}>
@@ -283,26 +308,42 @@ export function ZoomGroup({ view, onView, full = false, onFull }: { view: ZoomVi
       >
         +
       </button>
-      {onFull && (
+      {full && onFit ? (
         <button
           type="button"
-          className="button-quiet button-small icon-button full-toggle"
-          aria-label={t('Pe tot ecranul')}
-          aria-pressed={full}
-          title={full ? t('Ieși din ecranul complet (Esc)') : t('Pe tot ecranul')}
-          onClick={() => onFull(!full)}
+          className="button-quiet button-small icon-button fit-toggle"
+          aria-label={t('Potrivește în fereastră')}
+          aria-pressed={fit}
+          title={fit ? t('Arată pagina pe lățimea ecranului') : t('Arată toată pagina în fereastră')}
+          onClick={() => onFit(!fit)}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path
-              d={full ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <rect x="8" y="6.5" width="8" height="11" rx="1" fill="none" stroke="currentColor" strokeWidth="1.8" />
           </svg>
         </button>
+      ) : (
+        onFull && (
+          <button
+            type="button"
+            className="button-quiet button-small icon-button full-toggle"
+            aria-label={t('Pe tot ecranul')}
+            aria-pressed={full}
+            title={full ? t('Ieși din ecranul complet (Esc)') : t('Pe tot ecranul')}
+            onClick={() => onFull(!full)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d={full ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )
       )}
     </span>
   );
