@@ -1885,8 +1885,8 @@ a.class-badge:hover {
 }
 
 /* The Teste page (redesign spec §5): the greeting with what waits, the list
-   of it in place, the class chips, and the tests in two groups, each row
-   with a bar of the six stages. */
+   of it in place, and the tests in two groups with the class filter, each
+   row with a bar of the six stages. */
 .tests-page .page-head {
   margin-bottom: 1.25rem;
 }
@@ -1972,14 +1972,6 @@ a.class-badge:hover {
   overflow-wrap: anywhere;
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-  margin: 0 0 1rem;
-}
-
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -2005,17 +1997,71 @@ a.class-badge:hover {
   color: var(--paper);
 }
 
+/* A group's title and count stand on the page, over its card, so they never
+   read as a test; the class filter sits at the right of the first one. */
 .test-group {
-  margin: 0 0 1.5rem;
+  margin: 0 0 1.75rem;
+}
+
+.group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin: 0 0 0.625rem;
+}
+
+.group-head.is-filter-only {
+  justify-content: flex-end;
+}
+
+/* Wrapped under the title on a narrow screen, the filter stays on the right,
+   so its menu never hangs past the screen's left edge. */
+.group-head > .class-filter {
+  margin-left: auto;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.group-title h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.test-group-card {
   border: 1px solid var(--rule);
   border-radius: var(--radius-panel);
   background: var(--sheet);
 }
 
-.test-group h2 {
-  margin: 0;
-  padding: 1.125rem 1.5rem 0.25rem;
-  font-size: 0.9375rem;
+/* The class filter: the class page's "Schimbă clasa" button, round, with
+   its list under it on the right. */
+.class-switch-button.class-filter-button {
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.75rem 0 1rem;
+  border-radius: 999px;
+}
+
+.class-filter .class-filter-menu {
+  right: 0;
+  left: auto;
+  width: 17.5rem;
+  max-width: calc(100vw - 2rem);
+}
+
+.class-filter .class-menu-item[aria-current="true"] {
+  background: var(--ink-tint);
+}
+
+.class-filter .class-menu-foot .check-label {
+  font-size: 0.875rem;
 }
 
 table.tests {
@@ -2051,16 +2097,32 @@ table.tests thead th {
   font-weight: 500;
 }
 
-table.tests thead th:nth-child(1) {
+/* The widths are the columns', so every group's table lines up, also the
+   ones whose column names are only for screen readers. */
+table.tests col.col-test {
   width: 34%;
 }
 
-table.tests thead th:nth-child(2) {
+table.tests col.col-stage {
   width: 28%;
 }
 
-table.tests thead th:nth-child(3) {
+table.tests col.col-num {
   width: 10%;
+}
+
+/* A table after the first keeps its column names in the table, for screen
+   readers, with their words hidden and no height. */
+table.tests thead.quiet-head th {
+  height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border: 0;
+  line-height: 0;
+}
+
+table.tests thead.quiet-head + tbody tr:first-child > * {
+  border-top: 0;
 }
 
 table.tests .num,
@@ -2073,14 +2135,15 @@ table.tests tbody th {
   overflow-wrap: anywhere;
 }
 
+/* The test's name is a link, as a student's name in the papers table: blue,
+   no bold, underlined under the pointer. */
 .test-name a {
-  color: var(--text);
-  font-weight: 700;
+  color: var(--ink);
+  font-weight: 400;
   text-decoration: none;
 }
 
 .test-name a:hover {
-  color: var(--ink);
   text-decoration: underline;
 }
 
@@ -2204,8 +2267,8 @@ table.tests .row-actions {
     justify-content: flex-start;
   }
 
-  .test-group h2 {
-    padding: 1rem 1.25rem 0.25rem;
+  table.tests tbody tr:first-child {
+    border-top: 0;
   }
 
   .todo-rows li {
