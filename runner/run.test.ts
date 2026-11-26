@@ -9,7 +9,7 @@ import type { ExerciseList, GeneratedBarem, GradingResult } from '../shared/sche
 import { type RobotApi, robotApi } from './api.ts';
 import { PrintSetupError } from './printTask.ts';
 import { main, newRunId, type RunOptions, runRobot } from './run.ts';
-import { addOpenTest, API_URL, evaluatingTest, fetchFrom, requestBarem, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
+import { addOpenTest, addTry, API_URL, evaluatingTest, fetchFrom, requestBarem, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 import { answer, problem, scriptedClaude, type ScriptedAnswer } from './test/scriptedClaude.ts';
 
 const RUN = 'run-loop-0001';
@@ -584,6 +584,21 @@ describe('main', () => {
     expect(await main(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claude: claude.run, workdir: { skillDir: skill() }, printTools })).toBe(0);
     expect(links).toEqual([`${API_URL}/u/${open.uploadToken}`]);
     expect(JSON.parse((await runner())!.last_run_summary!)).toMatchObject({ graded: 1, prints: 1, barems: 0, stop: 'done' });
+  });
+
+  it('runs the Quick Try robot with QE_LANE=try, on its own lease and work', async () => {
+    await setUp(1);
+    const made = await addTry(world!.api, 'own');
+    const env = { QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, RUNNER_TEMP: folder('qe-runner-temp-'), QE_LANE: 'try' };
+    const claude = scriptedClaude(answer(LIST), answer(GRADING));
+    expect(await main(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claude: claude.run, workdir: { skillDir: skill() } })).toBe(0);
+    expect(claude.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade']);
+    const paper = await world!.api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(made.submissionId).first<{ status: string }>();
+    expect(paper!.status).toBe('graded');
+    expect((await uploads()).map((row) => row.status)).toEqual(['submitted']);
+    const tryRow = await world!.api.db.prepare('SELECT last_run_summary FROM runner_state WHERE id = 2').first<{ last_run_summary: string }>();
+    expect(JSON.parse(tryRow!.last_run_summary)).toMatchObject({ exerciseLists: 1, graded: 1, stop: 'done' });
+    expect((await runner())!.last_run_summary).toBeNull();
   });
 
   it('fails when the API cannot be reached', async () => {

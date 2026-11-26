@@ -14,6 +14,7 @@ import type {
   PrintJob,
   printFailedBody,
   resultBody,
+  RobotLane,
   RobotTest,
   RunSummary,
   TasksResult,
@@ -111,6 +112,9 @@ export interface RobotApiOptions {
   // then twice that.
   tries?: number;
   retryDelayMs?: number;
+  // The robot's lane: "try" (the Quick Try robot) names itself on the
+  // requests that find work and take it (?lane=try); none is the teachers'.
+  lane?: RobotLane;
 }
 
 export function robotApi(baseUrl: string, key: string, options: RobotApiOptions = {}): RobotApi {
@@ -119,6 +123,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
   const tries = options.tries ?? 3;
   const retryDelayMs = options.retryDelayMs ?? 5_000;
   const root = `${baseUrl.replace(/\/+$/, '')}/api/runner`;
+  const lane = options.lane === 'try' ? '?lane=try' : '';
 
   // Sends a request and reads its answer with `read`, inside the time limit:
   // a big file that breaks off while it downloads is tried again too. A body
@@ -150,16 +155,16 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
   const nothing = async () => undefined;
 
   return {
-    check: (configured) => json<CheckResult>('POST', '/check', configured),
-    lease: (runId) => json<LeaseResult>('POST', '/lease', { runId }),
+    check: (configured) => json<CheckResult>('POST', `/check${lane}`, configured),
+    lease: (runId) => json<LeaseResult>('POST', `/lease${lane}`, { runId }),
     heartbeat: (runId) => send('POST', '/heartbeat', { runId }, nothing),
     release: (runId, summary) => send('POST', '/release', { runId, summary }, nothing),
-    tasks: () => json<TasksResult>('GET', '/tasks'),
+    tasks: () => json<TasksResult>('GET', `/tasks${lane}`),
     test: async (testId, variant) => (await json<{ test: RobotTest }>('GET', `/tests/${testId}${ofVariant(variant)}`)).test,
     testFile: (testId, kind, variant) => bytes(`/tests/${testId}/files/${kind}${ofVariant(variant)}`),
     sendExerciseList: async (testId, body, variant) =>
       (await json<{ exerciseList: ExerciseListInfo }>('POST', `/tests/${testId}/exercise-list${ofVariant(variant)}`, body)).exerciseList,
-    claim: (runId) => send('POST', '/claim', { runId }, async (res) => (res.status === 204 ? null : ((await res.json()) as ClaimResult))),
+    claim: (runId) => send('POST', `/claim${lane}`, { runId }, async (res) => (res.status === 204 ? null : ((await res.json()) as ClaimResult))),
     page: (submissionId, fileId) => bytes(`/submissions/${submissionId}/files/${fileId}`),
     sendResult: async (submissionId, body) =>
       (await json<{ status: 'graded' | 'submitted' | 'failed' }>('POST', `/submissions/${submissionId}/result`, body)).status,
@@ -227,9 +232,14 @@ async function errorCode(res: Response): Promise<string> {
 }
 
 // The robot API from the environment (QUICKEVAL_URL and QUICKEVAL_RUNNER_KEY,
-// spec §12.1); null while the robot is not set up.
+// spec §12.1); null while the robot is not set up. QE_LANE=try is the Quick
+// Try robot's job; anything else is the teachers' robot.
 export function robotApiFromEnv(env: Record<string, string | undefined>, options: RobotApiOptions = {}): RobotApi | null {
   const url = env.QUICKEVAL_URL?.trim();
   const key = env.QUICKEVAL_RUNNER_KEY?.trim();
-  return url && key ? robotApi(url, key, options) : null;
+  return url && key ? robotApi(url, key, { lane: laneFromEnv(env), ...options }) : null;
+}
+
+export function laneFromEnv(env: Record<string, string | undefined>): RobotLane {
+  return env.QE_LANE?.trim() === 'try' ? 'try' : 'main';
 }
