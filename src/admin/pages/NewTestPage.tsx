@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
@@ -110,6 +110,18 @@ export function NewTestPage() {
     setCesTestFile(file);
     if (file === null) setCesBarem((current) => (current === 'generate' ? 'later' : current));
   };
+  // The CES tiles are drawn while the class has CES students, hidden while
+  // the switch is off, so turning it off and on keeps their files on show.
+  // A class with none (or one still loading) draws no CES tile, so the CES
+  // files are forgotten: a tile drawn again later starts empty, and a file it
+  // no longer shows is never sent.
+  const hasCes = cesNames.length > 0;
+  useEffect(() => {
+    if (hasCes) return;
+    setCesTestFile(null);
+    setCesBaremFile(null);
+    setCesBarem((current) => (current === 'generate' ? 'later' : current));
+  }, [hasCes]);
   // The drop areas whose photos are being made into a PDF: the test is not
   // made before they end, or their file would be left out.
   const [preparing, setPreparing] = useState<ReadonlySet<string>>(new Set());
@@ -331,13 +343,14 @@ export function NewTestPage() {
                 </div>
                 {/* The class part keeps its place whether the CES part shows or not,
                     so turning CES on or off never redraws its file tile and loses
-                    the file shown in it. */}
+                    the file shown in it; the CES part stays drawn, hidden, while
+                    the switch is off, for the same reason. */}
                 <div className="step-part">
                   {withCes && <h3>{t('Testul clasei')}</h3>}
                   <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} tile={testTile} />
                 </div>
-                {withCes && (
-                  <div className="step-part">
+                {hasCes && (
+                  <div className="step-part" hidden={!cesOn}>
                     <h3>
                       {t('Testul CES')}
                       <CesTag />
@@ -365,8 +378,8 @@ export function NewTestPage() {
                   {classBarem.note}
                   {classBarem.body}
                 </div>
-                {withCes && (
-                  <div className="step-part">
+                {hasCes && (
+                  <div className="step-part" hidden={!cesOn}>
                     <div className="step-part-head">
                       <h3>
                         {t('Baremul CES')}

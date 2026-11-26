@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { DOCX_TYPE, PDF_TYPE } from '../../../shared/files.ts';
@@ -504,6 +504,51 @@ describe('NewTestPage, a class with a CES student', () => {
       expect(tiles()[1]).toHaveTextContent('Barem.pdf');
     }
     expect(screen.getByRole('group', { name: 'Baremul clasei' })).toBeInTheDocument();
+  });
+
+  it('keeps the CES files on show while the switch is off, and sends them once it is on again', async () => {
+    const api = withCes();
+    renderAdmin('/tests/new', api, <LocationProbe />);
+    await fillClassAndTitle('2');
+    const toggle = await screen.findByRole('switch', { name: 'Test separat pentru elevii cu CES' });
+    const ces = pdf('Test adaptat.pdf');
+    const cesBarem = pdf('Barem adaptat.pdf');
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), ces);
+    await userEvent.upload(cesBaremField(), cesBarem);
+    await userEvent.click(toggle);
+    expect(screen.getByLabelText(/^Fișierul testului CES/)).not.toBeVisible();
+    await userEvent.click(toggle);
+    const cesTile = document.querySelector('label[for="new-ces-test-file"]')!;
+    expect(cesTile).toBeVisible();
+    expect(cesTile).toHaveClass('is-chosen');
+    expect(cesTile).toHaveTextContent('Test adaptat.pdf');
+    expect(document.querySelector('label[for="new-ces-barem-file"]')).toHaveTextContent('Barem adaptat.pdf');
+    await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
+    await expectLocation('/tests/9R2-26T1');
+    expect(api.uploadTestFile).toHaveBeenCalledWith('9R2-26T1', 'test', ces, 'ces');
+    expect(api.uploadTestFile).toHaveBeenCalledWith('9R2-26T1', 'barem', cesBarem, 'ces');
+  });
+
+  it('forgets the CES files when a class without CES students is chosen, and sends none', async () => {
+    const api = withCes();
+    renderAdmin('/tests/new', api, <LocationProbe />);
+    await fillClassAndTitle('2');
+    await screen.findByRole('switch');
+    await userEvent.upload(screen.getByLabelText(/^Fișierul testului CES/), pdf('Test adaptat.pdf'));
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: 'Din test' }));
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '1');
+    await waitFor(() => expect(screen.queryByRole('switch')).not.toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '2');
+    await screen.findByRole('switch');
+    const cesTile = document.querySelector('label[for="new-ces-test-file"]')!;
+    expect(cesTile).not.toHaveClass('is-chosen');
+    expect(cesBaremChoices().getByRole('radio', { name: 'Din test' })).toBeDisabled();
+    expect(cesBaremChoices().getByRole('radio', { name: 'Mai târziu' })).toBeChecked();
+    expect(missingItems()).toEqual(['testul', 'baremul', 'testul CES', 'baremul CES']);
+    await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
+    await expectLocation('/tests/9R2-26T1');
+    expect(api.uploadTestFile).not.toHaveBeenCalled();
+    expect(api.generateBarem).not.toHaveBeenCalled();
   });
 
   it('turned off, hides the CES files, asks nothing for them, and creates the test without them', async () => {
