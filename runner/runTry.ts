@@ -11,6 +11,9 @@ import { gradeSubmission, makeExerciseList } from './tasks.ts';
 // (and the visitor's check), its paper for its list. A Quick Try has no print,
 // no CES variant and no class analysis, so the run reads none of them.
 
+// How long a free slot waits before it looks for new work again.
+export const IDLE_POLL_MS = 20_000;
+
 export async function runTryRobot(options: RunOptions): Promise<RunReport> {
   const { api, runId } = options;
   const lease = await api.lease(runId);
@@ -63,12 +66,26 @@ export async function runTryRobot(options: RunOptions): Promise<RunReport> {
     return claim ? async () => record(await gradeSubmission(ctx, claim), 'graded') : null;
   };
 
+  // A slot that finds no work waits and looks again while another slot works:
+  // a try that comes during the run starts at once on a free slot. The run
+  // ends when a look finds no work and no slot works.
+  const idlePollMs = options.idlePollMs ?? IDLE_POLL_MS;
+  let working = 0;
   const slot = async () => {
     try {
       while (canTake()) {
         const task = await nextTask();
-        if (!task) return;
-        await task();
+        if (!task) {
+          if (working === 0) return;
+          await new Promise((resolve) => setTimeout(resolve, idlePollMs));
+          continue;
+        }
+        working += 1;
+        try {
+          await task();
+        } finally {
+          working -= 1;
+        }
       }
     } catch (err) {
       // The other slots take no new work either.

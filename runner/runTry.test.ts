@@ -85,7 +85,7 @@ function options(claude: ReturnType<typeof scriptedClaude>, requests: string[] =
     retryDelayMs: 0,
     lane: 'try',
   });
-  return { api: robot, claude: claude.run, runId: RUN, root: folder('qe-try-'), workdir: { skillDir: skill(), pandoc }, heartbeatMs: 60_000 };
+  return { api: robot, claude: claude.run, runId: RUN, root: folder('qe-try-'), workdir: { skillDir: skill(), pandoc }, heartbeatMs: 60_000, idlePollMs: 10 };
 }
 
 // Answers only once `count` Claude calls have started: two slots must be at
@@ -151,6 +151,29 @@ describe('runTryRobot', () => {
     const claude = scriptedClaude(both, both);
     const report = await runTryRobot(options(claude));
     expect(report.summary).toMatchObject({ barems: 2, stop: 'done' });
+  });
+
+  it('takes a try that comes while another slot works, at once', async () => {
+    await tryApi(2);
+    await addTry(api!, 'requested');
+    // The second try comes while the first try's barem is in Claude; its
+    // barem must start before the first one ends, on the other slot.
+    let secondStarted: () => void = () => {};
+    const second = new Promise<void>((resolve) => {
+      secondStarted = resolve;
+    });
+    const first = async () => {
+      await addTry(api!, 'requested');
+      const late = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('the second try waited for the first')), 1000));
+      await Promise.race([second, late]);
+      return answer(BAREM);
+    };
+    const claude = scriptedClaude(first, async () => {
+      secondStarted();
+      return answer(BAREM);
+    });
+    const report = await runTryRobot(options(claude));
+    expect(report.summary).toMatchObject({ barems: 2, failed: 0, stop: 'done' });
   });
 
   it('never gives one barem to two slots', async () => {

@@ -68,7 +68,7 @@ describe('a Quick Try paper', () => {
 
     const claude = scriptedClaude(answer(LIST), answer(GRADING));
     const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(api), retryDelayMs: 0, lane: 'try' });
-    const report = await runTryRobot({ api: robot, claude: claude.run, runId: 'run-quick-try-1', root: folder('qe-run-'), workdir: { skillDir: skill() }, heartbeatMs: 60_000 });
+    const report = await runTryRobot({ api: robot, claude: claude.run, runId: 'run-quick-try-1', root: folder('qe-run-'), workdir: { skillDir: skill() }, heartbeatMs: 60_000, idlePollMs: 10 });
     expect(report.summary).toMatchObject({ exerciseLists: 1, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' });
     expect(claude.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade']);
     const test = await api.db.prepare('SELECT status, analysis_status, print_status FROM tests WHERE quick_try = 1').first();

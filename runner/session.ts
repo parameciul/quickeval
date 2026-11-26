@@ -32,6 +32,9 @@ export interface RunOptions {
   now?: () => number;
   budgetMs?: number;
   heartbeatMs?: number;
+  // The Quick Try run: how long a free slot waits before it looks for work
+  // again while another slot works (runTry.ts).
+  idlePollMs?: number;
 }
 
 export interface RunReport {

@@ -85,6 +85,16 @@ describe("the teachers' robot starts again", () => {
     expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
+  it('does not start again after a run that stopped at an error', async () => {
+    // Three tasks in a row used an attempt, or the API failed: a person looks first,
+    // or every restart would use three more attempts of the class's papers.
+    await setRow('last_check_at = ?, last_run_finished_at = ?, last_run_summary = ?', ago(240), ago(180), summary('error'));
+    await version();
+    vi.setSystemTime(minutes(120));
+    await version();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
   it('starts again after a run that ran out of time with work left', async () => {
     await setRow('last_check_at = ?, last_run_finished_at = ?, last_run_summary = ?', ago(120), ago(1), summary('budget'));
     await version();

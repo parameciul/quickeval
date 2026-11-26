@@ -152,7 +152,9 @@ export async function laneHasWork(db: D1Database, scope: RestartScope, now: stri
 // (restart_at) when no run of the lane is alive, no run checked in and no page
 // started it in the last ROBOT_RESTART_MS, and the lane's last run, when
 // nothing came after it, did not end at a refused Claude login (that needs a
-// person to renew the token) or at the plan's limit less than
+// person to renew the token), at an error (three tasks in a row used an
+// attempt, or the API failed: a person looks first, or every start would use
+// three more attempts of the waiting papers) or at the plan's limit less than
 // RESTART_AFTER_LIMIT_MS ago. The time is taken even when the page then finds
 // no work: the look at the work runs at most once in that time, and every new
 // piece of work starts the robot at once anyway.
@@ -167,7 +169,7 @@ export async function claimRobotRestart(db: D1Database, lane: RobotLane, now: st
          AND (last_check_at IS NULL OR last_check_at < ?4)
          AND (restart_at IS NULL OR restart_at < ?4)
          AND NOT (last_run_finished_at IS NOT NULL AND last_run_finished_at >= COALESCE(last_check_at, '') AND (
-           json_extract(last_run_summary, '$.stop') = 'claude_login'
+           json_extract(last_run_summary, '$.stop') IN ('claude_login', 'error')
            OR (json_extract(last_run_summary, '$.stop') = 'usage_limit' AND last_run_finished_at >= ?5)))`,
     )
     .bind(now, LANE_ROW[lane], staleBefore(now), before(ROBOT_RESTART_MS), before(RESTART_AFTER_LIMIT_MS[lane]))

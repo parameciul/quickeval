@@ -126,6 +126,13 @@ describe('the try robot starts again', () => {
     expect(dispatchRobot).not.toHaveBeenCalled();
   });
 
+  it('does not start the try robot again after a run that stopped at an error', async () => {
+    const error = JSON.stringify({ exerciseLists: 0, graded: 0, failed: 3, analyses: 0, prints: 0, barems: 0, stop: 'error' });
+    await setRow(2, 'last_check_at = ?, last_run_finished_at = ?, last_run_summary = ?', ago(300), ago(240), error);
+    await readTry();
+    expect(dispatchRobot).not.toHaveBeenCalled();
+  });
+
   it('does not start the try robot for a try with no robot work', async () => {
     await api.db.prepare("UPDATE submissions SET status = 'graded', graded_at = ? WHERE test_id = (SELECT id FROM tests WHERE quick_try = 1)").bind(ago(1)).run();
     await api.db.prepare("UPDATE tests SET exercise_list_status = 'ready' WHERE quick_try = 1").run();

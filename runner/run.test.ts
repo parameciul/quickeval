@@ -592,7 +592,7 @@ describe('main', () => {
     const made = await addTry(world!.api, 'own');
     const env = { QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, RUNNER_TEMP: folder('qe-runner-temp-'), QE_LANE: 'try' };
     const claude = scriptedClaude(answer(LIST), answer(GRADING));
-    expect(await main(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claude: claude.run, workdir: { skillDir: skill() } })).toBe(0);
+    expect(await main(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claude: claude.run, workdir: { skillDir: skill() }, idlePollMs: 10 })).toBe(0);
     expect(claude.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade']);
     const paper = await world!.api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(made.submissionId).first<{ status: string }>();
     expect(paper!.status).toBe('graded');
@@ -623,7 +623,7 @@ describe('main', () => {
       const backup = scriptedClaude(answer(LIST), answer(GRADING));
       const { claudeFor } = accounts({ 'main-token-1234': main, 'backup-token-5678': backup });
       const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
-      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() }, idlePollMs: 10 })).toBe(0);
       expect(main.calls).toHaveLength(1);
       expect(backup.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade']);
       const paper = await world!.api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(made.submissionId).first<{ status: string }>();
@@ -641,7 +641,7 @@ describe('main', () => {
         return scriptedClaude(problem('usage_limit'), problem('usage_limit')).run;
       };
       const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
-      await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } });
+      await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() }, idlePollMs: 10 });
       expect(dirs).toEqual(['claude-config', 'claude-config-backup']);
     });
 
@@ -651,7 +651,7 @@ describe('main', () => {
       const main = scriptedClaude(problem('usage_limit'));
       const { claudeFor, made } = accounts({ 'main-token-1234': main });
       const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234' };
-      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() }, idlePollMs: 10 })).toBe(0);
       expect(made).toEqual(['main-token-1234']);
       const row = await world!.api.db.prepare('SELECT last_run_summary FROM runner_state WHERE id = 2').first<{ last_run_summary: string }>();
       expect(JSON.parse(row!.last_run_summary).stop).toBe('usage_limit');
@@ -662,7 +662,7 @@ describe('main', () => {
       const main = scriptedClaude(problem('usage_limit'));
       const { claudeFor, made } = accounts({ 'main-token-1234': main });
       const env = { ...base(), CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
-      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() }, idlePollMs: 10 })).toBe(0);
       expect(made).toEqual(['main-token-1234']);
       expect(JSON.parse((await runner())!.last_run_summary!).stop).toBe('usage_limit');
     });
@@ -673,7 +673,7 @@ describe('main', () => {
       const backup = scriptedClaude(answer(LIST), answer(GRADING));
       const { claudeFor, made } = accounts({ 'backup-token-5678': backup });
       const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
-      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() }, idlePollMs: 10 })).toBe(0);
       expect(made).toEqual(['backup-token-5678']);
       expect(backup.calls).toHaveLength(2);
       expect(await main_({ ...base(), QE_LANE: 'try' }, { fetch: fetchFrom(world!.api), claudeFor })).toBe(1);

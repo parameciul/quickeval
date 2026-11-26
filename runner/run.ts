@@ -162,6 +162,8 @@ export interface MainOptions extends RobotApiOptions {
   claudeFor?: (settings: ClaudeSettings) => ClaudeRunner;
   workdir?: WorkFolderOptions;
   printTools?: PrintTools;
+  // How long a free Quick Try slot waits before it looks again (runTry.ts).
+  idlePollMs?: number;
 }
 
 // The Claude of a run: the main account, and for the Quick Try robot the
@@ -208,7 +210,7 @@ export async function main(env: Record<string, string | undefined>, options: Mai
     const print = { tools: options.printTools ?? dockerTools(), siteUrl: env.QUICKEVAL_URL!.trim() };
     // QE_LANE=try: the Quick Try robot's job (its own lease, GitHub job and setting).
     const run = lane === 'try' ? runTryRobot : runRobot;
-    const report = await run({ api, claude, runId, root, workdir: options.workdir, print });
+    const report = await run({ api, claude, runId, root, workdir: options.workdir, print, idlePollMs: options.idlePollMs });
     return report.exitCode;
   } catch (err) {
     // The lease request failed: the API cannot be reached, or refused the key.
