@@ -23,6 +23,14 @@ describe('sortRows', () => {
     expect(names({ key: 'grade', dir: 'asc' })).toEqual(['Ionescu Radu', 'Ștefan Ana', 'Sandu Ion', 'Avram Lia', 'Marin Eva', 'Pop Dan']);
   });
 
+  it('sorts only the grades of graded papers, as the tables show them', () => {
+    const mixed = [
+      fakeUpload({ studentId: 1, studentName: 'A', submissionId: 1, status: 'grading', grade: 10 }),
+      fakeUpload({ studentId: 2, studentName: 'B', submissionId: 2, status: 'graded', grade: 5 }),
+    ];
+    expect(sortRows(mixed, { key: 'grade', dir: 'desc' }).map((row) => row.studentName)).toEqual(['B', 'A']);
+  });
+
   it('sorts the states in the order a paper goes through them', () => {
     expect(names({ key: 'state', dir: 'asc' })).toEqual(['Marin Eva', 'Avram Lia', 'Ionescu Radu', 'Sandu Ion', 'Ștefan Ana', 'Pop Dan']);
     expect(names({ key: 'state', dir: 'desc' })[0]).toBe('Pop Dan');

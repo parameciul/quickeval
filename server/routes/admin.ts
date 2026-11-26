@@ -22,8 +22,8 @@ import type { DataVersion, MeAnswer } from '../../shared/api.ts';
 export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   routes.use('*', sameOriginWrites, teacherAuth(), viewReadOnly, promoteDue(options));
-  // The app asks /me when it loads: the account's last use (Setări), at most
-  // once an hour. While an administrator views a teacher's account, the use is
+  // The app asks /me when it loads and again as its pages mount: the
+  // account's last use (Setări), written at most once an hour. While an administrator views a teacher's account, the use is
   // the administrator's own, never the viewed teacher's.
   routes.get('/me', async (c) => {
     await markSeen(c.env.DB, c.var.viewing?.adminId ?? c.var.teacher.id, nowIso());

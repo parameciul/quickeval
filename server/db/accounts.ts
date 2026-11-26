@@ -298,7 +298,7 @@ export async function createSession(db: D1Database, session: NewSession, now: st
   ]);
 }
 
-// How often the app's load writes the account's last use (`last_seen_at`).
+// How often a read of /me writes the account's last use (`last_seen_at`).
 export const SEEN_EVERY_MS = 60 * 60 * 1000;
 
 // The account used the app now: written at most once in SEEN_EVERY_MS, the

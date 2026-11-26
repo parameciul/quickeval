@@ -71,7 +71,8 @@ function valueOf(row: UploadRow, key: SortKey): number | null {
     case 'name':
       return null;
     case 'grade':
-      return row.grade;
+      // Only a graded paper's grade, as the tables show it.
+      return graded ? row.grade : null;
     case 'state':
       return stateRank(row);
     case 'files':
