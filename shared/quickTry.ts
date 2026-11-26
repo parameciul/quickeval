@@ -34,9 +34,52 @@ export function tryName(name: string, lang: MessageLang = pageLang()): string {
 // the code holds the try's whole link.
 // On an English page the address carries ?lang=en: the phone that opens it
 // has no saved choice (public/lang.js).
-export function quickTryPhonePath(token: string, here = false, lang: MessageLang = pageLang()): string {
-  const query = [here ? 'here=1' : '', lang === 'en' ? 'lang=en' : ''].filter(Boolean).join('&');
+// `parts`: what the phone sends (the test, the barem, the student's pages),
+// written in the address as `parts=test,marking-scheme,pages`. Left out for
+// the pages alone, the address they always had.
+export function quickTryPhonePath(token: string, here = false, lang: MessageLang = pageLang(), parts: readonly PhonePart[] = ['pages']): string {
+  const ordered = PHONE_PARTS.filter((part) => parts.includes(part));
+  const named = ordered.length > 0 && !(ordered.length === 1 && ordered[0] === 'pages') ? `parts=${ordered.map((part) => PHONE_PART_NAMES[part]).join(',')}` : '';
+  const query = [here ? 'here=1' : '', named, lang === 'en' ? 'lang=en' : ''].filter(Boolean).join('&');
   return `/try/${token}/phone${query ? `?${query}` : ''}`;
+}
+
+// The parts of a try that can come from the phone, in the order the phone
+// page takes them: the test, then its barem (which may be made from the
+// test), then the student's pages.
+export type PhonePart = 'test' | 'barem' | 'pages';
+export const PHONE_PARTS: readonly PhonePart[] = ['test', 'barem', 'pages'];
+// Their names in an address, in English ("barem" is `marking-scheme`).
+const PHONE_PART_NAMES: Record<PhonePart, string> = { test: 'test', barem: 'marking-scheme', pages: 'pages' };
+
+// The parts named by the address's `parts`, in order; unknown names are
+// skipped. Null when it names none: the page then works them out (phonePartsOf).
+export function parsePhoneParts(raw: string | null): PhonePart[] | null {
+  if (!raw) return null;
+  const named = new Set(raw.split(','));
+  const parts = PHONE_PARTS.filter((part) => named.has(PHONE_PART_NAMES[part]));
+  return parts.length > 0 ? parts : null;
+}
+
+interface TryFiles {
+  files: { test: unknown; barem: unknown };
+  barem: { request: string; unchecked: boolean };
+}
+
+// The parts a phone page opened without `parts` takes (the code of the try's
+// own page): what the try still misses, and always the pages. A barem being
+// made is not missing.
+export function phonePartsOf(test: TryFiles): PhonePart[] {
+  return PHONE_PARTS.filter((part) =>
+    part === 'test' ? test.files.test === null : part === 'barem' ? test.files.barem === null && test.barem.request !== 'requested' : true,
+  );
+}
+
+// After the test came from the phone, whether to ask for the barem made from
+// it: she chose no barem of her own (the barem is not a phone part), the try
+// has none, and none was asked for (a try asks once).
+export function asksBaremAfterTest(parts: readonly PhonePart[], test: TryFiles): boolean {
+  return !parts.includes('barem') && test.files.barem === null && test.barem.request === 'none' && !test.barem.unchecked;
 }
 // A phone in the hand, upright or sideways: it takes the photos itself, with
 // no QR code.

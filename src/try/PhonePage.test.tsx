@@ -7,17 +7,30 @@ import { createFakeApi } from '../test/fakeApi.ts';
 import { createFakeTryApi, renderTry, tryTest } from '../test/fakeTryApi.tsx';
 import { expectNoGradingWords } from '../test/gradingWords.ts';
 
+vi.mock('../ui/picturesPdf.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../ui/picturesPdf.ts')>();
+  return {
+    ...actual,
+    // The photos' names in order, as one fake PDF.
+    picturesToPdf: vi.fn(async (pictures: readonly File[], name: string) => ({
+      file: new File([pictures.map((picture) => picture.name).join('|')], name, { type: 'application/pdf' }),
+    })),
+  };
+});
+
+const files = { test: { name: 'test.pdf', type: 'application/pdf' }, barem: { name: 'barem.pdf', type: 'application/pdf' } };
 const page = (id: number, name: string): SubmissionFile => ({ id, name, contentType: 'application/pdf', size: 900, position: id });
 const jpeg = (name: string) => new File([new Uint8Array(10)], name, { type: 'image/jpeg' });
 
-function setup(pages: SubmissionFile[] = [], test = tryTest({ title: 'Fracții 6B' }), path = '/phone') {
+function setup(pages: SubmissionFile[] = [], test = tryTest({ title: 'Fracții 6B', files }), path = '/phone') {
   const api = createFakeApi({ classes: [], students: {}, tests: [test] });
   const tryApi = createFakeTryApi({ pages });
   renderTry(path, api, tryApi);
   return { api, tryApi };
 }
 
-const pick = (files: File[]) => userEvent.upload(screen.getByLabelText('Alege fișiere'), files);
+const pick = (picked: File[]) => userEvent.upload(screen.getByLabelText('Alege fișiere'), picked);
+const snap = (photo: File) => userEvent.upload(screen.getByLabelText('Fă o poză'), photo);
 
 beforeEach(() => {
   Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:preview'), configurable: true });
@@ -164,5 +177,129 @@ describe("a try's phone page", () => {
     const api = createFakeApi({ classes: [], students: {}, tests: [tryTest()] });
     renderTry('/phone', api, createFakeTryApi({ info: { expired: true } }));
     expect(await screen.findByRole('heading', { name: 'Încercarea a expirat' })).toBeInTheDocument();
+  });
+});
+
+
+describe('a phone page that takes the test and the barem too', () => {
+  const empty = () => tryTest({ title: 'Fracții 6B' });
+
+  it('walks the parts the address names, in order, with the steps on top', async () => {
+    setup([], empty(), '/phone?parts=pages,test,marking-scheme');
+    expect(await screen.findByRole('heading', { name: 'Testul', level: 1 })).toBeInTheDocument();
+    const steps = screen.getByRole('list', { name: 'Pașii' });
+    expect(within(steps).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Testul', 'Baremul', 'Lucrarea']);
+    expect(within(steps).getByText('Testul').closest('li')).toHaveAttribute('aria-current', 'step');
+    expectNoGradingWords();
+  });
+
+  it('keeps the photos on the phone in the order taken and sends them once, as one PDF', async () => {
+    const { api } = setup([], empty(), '/phone?parts=test,marking-scheme,pages');
+    await screen.findByRole('heading', { name: 'Testul', level: 1 });
+    expect(screen.getByRole('button', { name: 'Trimite testul și continuă' })).toBeDisabled();
+    await snap(jpeg('image.jpg'));
+    await snap(jpeg('IMG_9.jpg'));
+    await snap(jpeg('IMG_10.jpg'));
+    await waitFor(() => expect(screen.getAllByRole('img').map((img) => img.getAttribute('alt'))).toEqual(['Poza 1', 'Poza 2', 'Poza 3']));
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge poza 1' }));
+    expect(api.uploadTestFile).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite testul și continuă' }));
+    expect(await screen.findByRole('heading', { name: 'Baremul', level: 1 })).toBeInTheDocument();
+    expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
+    const [code, kind, file] = api.uploadTestFile.mock.calls[0]!;
+    expect([code, kind, file.name]).toEqual(['PROBA-26T1', 'test', 'Testul.pdf']);
+    expect(await file.text()).toBe('IMG_9.jpg|IMG_10.jpg');
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Pașii' })).getByText(/Testul/).closest('li')).toHaveClass('is-done'));
+    expect(api.generateBarem).not.toHaveBeenCalled();
+    expectNoGradingWords();
+  });
+
+  it('sends one PDF or Word file as it is', async () => {
+    const { api } = setup([], empty(), '/phone?parts=marking-scheme');
+    await screen.findByRole('heading', { name: 'Baremul', level: 1 });
+    const pdf = new File(['%PDF'], 'barem cap 3.pdf', { type: 'application/pdf' });
+    await pick([pdf]);
+    expect(screen.getByText('barem cap 3.pdf')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite baremul' }));
+    expect(await screen.findByRole('heading', { name: 'Pozele au ajuns' })).toBeInTheDocument();
+    expect(api.uploadTestFile).toHaveBeenCalledWith('PROBA-26T1', 'barem', pdf);
+    expect(screen.getByText('Sunt pe calculator.')).toBeInTheDocument();
+    expectNoGradingWords();
+  });
+
+  it('refuses a PDF picked with photos', async () => {
+    setup([], empty(), '/phone?parts=test');
+    await screen.findByRole('heading', { name: 'Testul', level: 1 });
+    await pick([jpeg('a.jpg'), new File(['%PDF'], 'b.pdf', { type: 'application/pdf' })]);
+    expect(screen.getByRole('alert')).toHaveTextContent('Încarcă un fișier PDF sau Word (.docx), ori poze JPG, PNG sau WebP.');
+    expect(screen.getByRole('button', { name: 'Trimite testul' })).toBeDisabled();
+  });
+
+  it('asks for the barem made from the test when she chose none of her own', async () => {
+    const { api } = setup([], empty(), '/phone?parts=test,pages');
+    await screen.findByRole('heading', { name: 'Testul', level: 1 });
+    await snap(jpeg('a.jpg'));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite testul și continuă' }));
+    expect(await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 })).toBeInTheDocument();
+    expect(api.generateBarem).toHaveBeenCalledWith('PROBA-26T1');
+    expectNoGradingWords();
+  });
+
+  it('says a part has arrived, goes on, and goes back', async () => {
+    setup([], tryTest({ title: 'Fracții 6B', files: { test: files.test, barem: null } }), '/phone?parts=test,marking-scheme');
+    expect(await screen.findByText('Testul a ajuns.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Continuă cu baremul' }));
+    expect(await screen.findByRole('heading', { name: 'Baremul', level: 1 })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Înapoi' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Fă din nou pozele' }));
+    expect(screen.getByRole('button', { name: 'Trimite testul și continuă' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Renunță' }));
+    expect(screen.getByText('Testul a ajuns.')).toBeInTheDocument();
+  });
+
+  it('without a list of parts, takes what the try misses, and the pages', async () => {
+    setup([], tryTest({ title: 'Fracții 6B', files: { test: files.test, barem: null } }));
+    expect(await screen.findByRole('heading', { name: 'Baremul', level: 1 })).toBeInTheDocument();
+    const steps = screen.getByRole('list', { name: 'Pașii' });
+    expect(within(steps).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Baremul', 'Lucrarea']);
+  });
+
+  it('lets her leave a part for later, but not the last one', async () => {
+    const { api } = setup([], empty());
+    expect(await screen.findByRole('heading', { name: 'Testul', level: 1 })).toBeInTheDocument();
+    await snap(jpeg('a.jpg'));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite testul și continuă' }));
+    // Without a list the barem is a step, so none is asked for: she may still skip it.
+    expect(await screen.findByRole('heading', { name: 'Baremul', level: 1 })).toBeInTheDocument();
+    expect(api.generateBarem).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Mai târziu' }));
+    expect(await screen.findByRole('heading', { name: 'Lucrarea elevului', level: 1 })).toBeInTheDocument();
+    expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
+    expectNoGradingWords();
+  });
+
+  it('has no "Mai târziu" on the last step', async () => {
+    setup([], empty(), '/phone?parts=marking-scheme');
+    await screen.findByRole('heading', { name: 'Baremul', level: 1 });
+    expect(screen.queryByRole('button', { name: 'Mai târziu' })).not.toBeInTheDocument();
+  });
+
+  it("shows the server's refusal and stays on the step", async () => {
+    const { api } = setup([], empty(), '/phone?parts=test,pages');
+    api.uploadTestFile.mockRejectedValueOnce(new ApiError(409, 'quick_try_files', 'Într-o încercare rapidă poți încărca testul și baremul de cel mult 6 ori în total.'));
+    await screen.findByRole('heading', { name: 'Testul', level: 1 });
+    await snap(jpeg('a.jpg'));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite testul și continuă' }));
+    expect(await screen.findByText(/de cel mult 6 ori/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Testul', level: 1 })).toBeInTheDocument();
+  });
+
+  it('on the phone that made the try, the last screen opens the try', async () => {
+    setup([], empty(), '/phone?here=1&parts=marking-scheme');
+    await screen.findByRole('heading', { name: 'Baremul', level: 1 });
+    await snap(jpeg('a.jpg'));
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite baremul' }));
+    expect(await screen.findByRole('link', { name: 'Deschide încercarea' })).toBeInTheDocument();
+    expect(screen.getByText('Sunt la încercare.')).toBeInTheDocument();
   });
 });

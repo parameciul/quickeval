@@ -1,12 +1,12 @@
 import type { QuickTryAvailability } from '../../../shared/api.ts';
-import { PHONE_MEDIA, QUICK_TRY_DAYS, quickTryPhonePath } from '../../../shared/quickTry.ts';
+import { PHONE_MEDIA, PHONE_PARTS, QUICK_TRY_DAYS, quickTryPhonePath, type PhonePart } from '../../../shared/quickTry.ts';
 import { ApiError, messageOf } from '../../ui/ApiError.ts';
 import { phaseOf, scoreOf, type TryPhase } from '../../try/phase.ts';
 import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui/format.ts';
 import { checkPick, picturesToPdf, type MakePdf, type PickCheck } from '../../ui/picturesPdf.ts';
 import { countVisitEvent } from '../../ui/visits.ts';
 import type { LandingApi } from './api.ts';
-import { openPhoneStep, type PhoneStep } from './phone.ts';
+import { openPhoneStep, phoneWords, type PhoneStep } from './phone.ts';
 import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf, type StartAnswer } from './status.ts';
@@ -82,7 +82,6 @@ function showPick(input: HTMLInputElement, chosen: File[]): void {
   const name = row.querySelector<HTMLElement>('[data-try-pick-name]')!;
   const hint = row.querySelector<HTMLElement>('[data-try-pick-hint]')!;
   const action = row.querySelector<HTMLElement>('[data-try-pick-action]')!;
-  row.classList.remove('is-phone');
   row.classList.toggle('is-chosen', chosen.length > 0);
   if (chosen.length === 0) {
     name.textContent = row.dataset.empty ?? '';
@@ -126,12 +125,17 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // The window's × and "Renunță".
   const closeButtons = Array.from(form.querySelectorAll<HTMLButtonElement>('[data-try-close]'));
   const turnstileBox = form.querySelector<HTMLElement>('[data-try-turnstile]')!;
-  const pagesInput = form.elements.namedItem('pages') as HTMLInputElement;
-  const phonePick = form.querySelector<HTMLButtonElement>('[data-try-phone-pick]')!;
-  const phoneUndo = form.querySelector<HTMLButtonElement>('[data-try-phone-undo]')!;
-  const baremInput = form.elements.namedItem('barem') as HTMLInputElement;
-  const robotBarem = form.elements.namedItem('robotBarem') as HTMLInputElement;
-  const robotNote = form.querySelector<HTMLElement>('[data-try-robot-note]');
+  const allPhone = form.querySelector<HTMLButtonElement>('[data-try-all]')!;
+  const allHint = form.querySelector<HTMLElement>('[data-try-all-hint]')!;
+  const oneCode = form.querySelector<HTMLElement>('[data-try-one-code]')!;
+  const oneCodeText = form.querySelector<HTMLElement>('[data-try-one-code-text]')!;
+  // The barem is made from the test unless she has her own: its choices hide
+  // behind "Am baremul meu", and a link goes back.
+  const ownSeg = form.querySelector<HTMLElement>('[data-try-own-seg]')!;
+  const ownOpen = form.querySelector<HTMLButtonElement>('[data-try-own-open]')!;
+  const ownClose = form.querySelector<HTMLButtonElement>('[data-try-own-close]')!;
+  const fileInput = (part: PhonePart) => form.elements.namedItem(part) as HTMLInputElement;
+  const stepOf = (part: PhonePart) => form.querySelector<HTMLElement>(`[data-try-part="${part}"]`)!;
   const refreshMs = deps.refreshMs ?? 10_000;
 
   let availability: QuickTryAvailability | null = null;
@@ -144,8 +148,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   let widget: Promise<TurnstileWidget> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let sending = false;
-  // "Cu telefonul": the pages come from the phone after the send.
-  let byPhone = false;
   // The QR window, while it shows.
   let phoneStep: PhoneStep | null = null;
   // On a phone: "Fă poze" and its own camera, in place of the QR code.
@@ -222,13 +224,14 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     const files = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
     // The form has no name field: the try is named after the test file.
     const title = form!.elements.namedItem('title') as HTMLInputElement | null;
+    const phone = phoneParts();
     return {
       title: title?.value ?? '',
-      test: files('test')[0] ?? null,
-      barem: files('barem')[0] ?? null,
-      robotBarem: (form!.elements.namedItem('robotBarem') as HTMLInputElement).checked,
-      pages: byPhone ? [] : files('pages'),
-      byPhone,
+      test: phone.includes('test') ? null : (files('test')[0] ?? null),
+      barem: phone.includes('barem') ? null : (files('barem')[0] ?? null),
+      robotBarem: fromOf('barem') === 'robot',
+      pages: phone.includes('pages') ? [] : files('pages'),
+      phone,
     };
   }
 
@@ -257,59 +260,126 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
 
   for (const button of closeButtons) button.addEventListener('click', () => closeDialog(dialog));
 
-  // The barem is her file or the one made from the test, never both: the
-  // choice empties the file, a file clears the choice.
-  function chooseRobotBarem(on: boolean): void {
-    robotBarem.checked = on;
-    if (robotNote) robotNote.hidden = !on;
-    if (!on) return;
-    baremInput.value = '';
-    showPick(baremInput, []);
-  }
-  robotBarem.addEventListener('change', () => chooseRobotBarem(robotBarem.checked));
+  // Where each part comes from: its file, the phone (after the send, through
+  // one QR code, or this phone's camera), or for the barem the test. A radio
+  // group in each step's head; only the chosen way shows under it.
+  const fromOf = (part: PhonePart): string => (form!.elements.namedItem(`${part}From`) as RadioNodeList).value;
+  const phoneParts = (): PhonePart[] => PHONE_PARTS.filter((part) => fromOf(part) === 'phone');
+  const setFrom = (part: PhonePart, value: string) => {
+    (form!.elements.namedItem(`${part}From`) as RadioNodeList).value = value;
+  };
 
-  // The pages row's chosen state for the phone: its name and hint, and
-  // "Schimbă" in place of the two buttons. Leaving it shows the picked files.
-  function choosePhone(on: boolean): void {
-    byPhone = on;
-    phonePick.hidden = on;
-    phoneUndo.hidden = !on;
-    if (!on) return showPick(pagesInput, Array.from(pagesInput.files ?? []));
-    pagesInput.value = '';
-    const row = pagesInput.closest<HTMLElement>('[data-try-pick]')!;
-    row.classList.add('is-chosen', 'is-phone');
-    row.querySelector<HTMLElement>('[data-try-pick-name]')!.textContent = here ? t('Faci pozele cu acest telefon') : t('Faci pozele cu telefonul');
-    row.querySelector<HTMLElement>('[data-try-pick-hint]')!.textContent = here ? t('Camera se deschide după ce apeși Trimite') : t('Codul QR apare după ce apeși Trimite');
+  // The ways under each step, "Am totul pe hârtie", and the line that says
+  // what the phone sends.
+  function sync(): void {
+    for (const part of PHONE_PARTS) {
+      const from = fromOf(part);
+      for (const way of stepOf(part).querySelectorAll<HTMLElement>('[data-try-from]')) way.hidden = way.dataset.tryFrom !== from;
+    }
+    const own = fromOf('barem') !== 'robot';
+    ownSeg.hidden = !own;
+    ownClose.hidden = !own;
+    const phone = phoneParts();
+    const all = allOnPaper();
+    allPhone.setAttribute('aria-pressed', String(all));
+    allHint.textContent = all
+      ? here
+        ? t('Faci toate pozele cu acest telefon, după ce apeși Trimite')
+        : t('Faci toate pozele cu telefonul, cu un singur cod QR')
+      : own
+        ? here
+          ? t('Fac poze la test, barem și lucrare, cu acest telefon')
+          : t('Fac poze la test, barem și lucrare, cu telefonul')
+        : here
+          ? t('Fac poze la test și lucrare, cu acest telefon')
+          : t('Fac poze la test și lucrare, cu telefonul');
+    oneCode.hidden = phone.length === 0 || all;
+    const named = phoneWords(phone);
+    if (here) oneCodeText.textContent = t('După Trimite, camera se deschide pentru {parts}.', { parts: named });
+    else {
+      const bold = document.createElement('b');
+      bold.textContent = t('Un singur cod QR');
+      oneCodeText.replaceChildren(bold, ' ', t('pentru {parts}. Îl scanezi după ce apeși Trimite.', { parts: named }));
+    }
   }
 
-  // The pages row's phone button, for this device. The markup keeps it hidden
-  // so a phone never shows "Cu telefonul" first.
+  // A part that leaves its file forgets the file picked for it.
+  function forgetFile(part: PhonePart): void {
+    const input = fileInput(part);
+    if ((input.files?.length ?? 0) === 0 && input.value === '') return;
+    input.value = '';
+    showPick(input, []);
+  }
+
+  for (const part of PHONE_PARTS) {
+    for (const radio of stepOf(part).querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
+      radio.addEventListener('change', () => {
+        if (fromOf(part) !== 'file') forgetFile(part);
+        sync();
+      });
+    }
+  }
+
+  // Everything on paper: the test and the pages from the phone, and the barem
+  // made from the test or photographed too.
+  function allOnPaper(): boolean {
+    return fromOf('test') === 'phone' && fromOf('pages') === 'phone' && fromOf('barem') !== 'file';
+  }
+
+  allPhone.addEventListener('click', () => {
+    const all = allOnPaper();
+    for (const part of ['test', 'pages'] as const) {
+      setFrom(part, all ? 'file' : 'phone');
+      if (!all) forgetFile(part);
+    }
+    // Her own barem follows; the one made from the test stays.
+    if (all && fromOf('barem') === 'phone') setFrom('barem', 'robot');
+    if (!all && fromOf('barem') === 'file') {
+      setFrom('barem', 'phone');
+      forgetFile('barem');
+    }
+    sync();
+  });
+
+  ownOpen.addEventListener('click', () => {
+    setFrom('barem', 'file');
+    sync();
+    stepOf('barem').querySelector<HTMLInputElement>('input[value="file"]')!.focus();
+  });
+  ownClose.addEventListener('click', () => {
+    setFrom('barem', 'robot');
+    forgetFile('barem');
+    sync();
+    ownOpen.focus();
+  });
+
+  // The phone's words, for this device. The markup keeps the choices hidden
+  // so a phone never shows "Telefon" first.
   function applyDevice(): void {
     here = (deps.isPhone ?? onAPhone)();
-    phonePick.classList.toggle('is-here', here);
-    phonePick.querySelector<HTMLElement>('[data-try-phone-pick-text]')!.textContent = here ? t('Fă poze') : t('Cu telefonul');
-    if (byPhone) choosePhone(true);
-    else phonePick.hidden = false;
+    for (const word of form!.querySelectorAll<HTMLElement>('[data-try-phone-word]')) word.textContent = here ? t('Fă poze') : t('Telefon');
+    for (const title of form!.querySelectorAll<HTMLElement>('[data-try-phone-title]')) {
+      title.textContent = here ? t('Faci pozele cu acest telefon, după ce apeși Trimite') : t('Faci pozele cu telefonul, după ce apeși Trimite');
+    }
+    for (const hint of form!.querySelectorAll<HTMLElement>('[data-try-phone-hint]')) {
+      hint.textContent = here ? t('Camera se deschide pas cu pas') : t('Același cod QR pentru toate pozele');
+    }
+    for (const seg of form!.querySelectorAll<HTMLElement>('[data-try-seg]')) seg.hidden = false;
+    allPhone.hidden = false;
+    sync();
   }
   applyDevice();
   (deps.watchPhone ?? ((onChange) => window.matchMedia?.(PHONE_MEDIA).addEventListener?.('change', onChange, { signal: deps.signal })))(applyDevice);
 
-  phonePick.addEventListener('click', () => {
-    choosePhone(true);
-    // The button hides: the focus goes to its "Schimbă".
-    phoneUndo.focus();
-  });
-  phoneUndo.addEventListener('click', () => {
-    choosePhone(false);
-    phonePick.focus();
-  });
-
   const pickInputs = Array.from(form.querySelectorAll<HTMLInputElement>('[data-try-pick] input[type="file"]'));
   for (const input of pickInputs) {
     input.addEventListener('change', () => {
-      // Picking files leaves the phone choice.
-      if (input === pagesInput && byPhone) choosePhone(false);
-      if (input === baremInput && (input.files?.length ?? 0) > 0) chooseRobotBarem(false);
+      // A file picked (or dropped) for a part takes that part to "Fișier".
+      const part = input.name as PhonePart;
+      if ((input.files?.length ?? 0) > 0 && fromOf(part) !== 'file') {
+        setFrom(part, 'file');
+        sync();
+      }
       showPick(input, Array.from(input.files ?? []));
     });
   }
@@ -340,7 +410,8 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // photos are waited for.
   type Picked = { test: PickCheck | null; barem: PickCheck | null };
   function checkTeacherFiles(): Picked | { problem: string } {
-    const list = (name: string) => Array.from((form!.elements.namedItem(name) as HTMLInputElement).files ?? []);
+    // A part from the phone sends no file now.
+    const list = (name: PhonePart) => (fromOf(name) === 'file' ? Array.from(fileInput(name).files ?? []) : []);
     const test = checkPick(list('test'));
     if (test?.kind === 'problem') return { problem: t('Testul: {test}', { test: test.problem }) };
     const barem = checkPick(list('barem'));
@@ -418,26 +489,26 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       // Before a phone leaves for the try's phone page: the count goes out first.
       countVisitEvent('quick-try-sent');
       sending = false;
-      const withPhone = values.byPhone;
+      const parts = values.phone;
+      const withPhone = parts.length > 0;
       form!.reset();
-      chooseRobotBarem(false);
-      choosePhone(false);
       for (const input of pickInputs) showPick(input, []);
+      sync();
       if (withPhone && here) {
         // Back may show this page again from the browser's cache: closed, and
         // with no button for a second try. The try is read then ("pageshow"),
         // not now, when the answer would land on a page that is leaving.
         closeDialog(dialog!);
         refreshButton();
-        (deps.go ?? ((path: string) => window.location.assign(path)))(quickTryPhonePath(done.token, true));
+        (deps.go ?? ((path: string) => window.location.assign(path)))(quickTryPhonePath(done.token, true, undefined, parts));
         return;
       }
       if (withPhone) {
         phoneStep = openPhoneStep(
           dialog!,
-          { api: deps.api, origin: deps.origin ?? window.location.origin, drawQr: deps.drawQr ?? drawQr },
+          { api: deps.api, origin: deps.origin ?? window.location.origin, drawQr: deps.drawQr ?? drawQr, makePdf: deps.makePdf },
           done,
-          { robotBarem: values.barem === null, onStarted: endPhoneStep, onClosed: endPhoneStep },
+          { parts, robotBarem: values.robotBarem && values.barem === null, onStarted: endPhoneStep, onClosed: endPhoneStep },
         );
         return;
       }
@@ -518,3 +589,4 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   );
   await Promise.all([answered, stored ? follow(stored) : Promise.resolve()]);
 }
+

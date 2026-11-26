@@ -425,51 +425,76 @@
           </div>
           <button class="icon tryd-x" type="button" data-try-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
         </div>
-        <div class="step">
-          <h3 class="step-t"><span class="num" aria-hidden="true">1</span><span id="try-test-label">The test</span></h3>
-          <label class="tile" data-try-pick data-empty="Choose the test" data-hint="PDF, Word or photos. The try gets the file's name.">
+        <button class="all-phone" type="button" aria-pressed="false" data-try-all hidden>
+          <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg></span>
+          <span class="tile-text"><b>I have everything on paper</b><small data-try-all-hint>I photograph the test and the paper with the phone</small></span>
+          <span class="all-phone-mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+        </button>
+        <div class="step" data-try-part="test">
+          <div class="step-row">
+            <h3 class="step-t"><span class="num" aria-hidden="true">1</span><span id="try-test-label">The test</span></h3>
+            <div class="seg" role="radiogroup" aria-label="Where the test comes from" data-try-seg hidden>
+              <label><input type="radio" name="testFrom" value="file" checked /><span>File</span></label>
+              <label><input type="radio" name="testFrom" value="phone" /><span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg><span data-try-phone-word>Phone</span></span></label>
+            </div>
+          </div>
+          <label class="tile" data-try-pick data-try-from="file" data-empty="Choose the test" data-hint="PDF, Word or photos. The try gets the file's name.">
             <input class="try-pick-input" type="file" name="test" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" aria-labelledby="try-test-label try-test-name" />
             <span class="tile-ic"><svg class="ic-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" /><path d="M3.5 13v3.25h13V13" /></svg><svg class="ic-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
             <span class="tile-text"><b id="try-test-name" data-try-pick-name>Choose the test</b><small data-try-pick-hint>PDF, Word or photos. The try gets the file's name.</small></span>
             <span class="tile-go" aria-hidden="true" data-try-pick-action>Choose the file</span>
           </label>
-        </div>
-        <div class="step">
-          <h3 class="step-t"><span class="num" aria-hidden="true">2</span><span id="try-barem-label">The marking scheme</span></h3>
-          <div class="tiles">
-            <label class="tile" data-try-pick data-empty="I upload the marking scheme" data-hint="PDF, Word or photos">
-              <input class="try-pick-input" type="file" name="barem" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" aria-labelledby="try-barem-label try-barem-name" />
-              <span class="tile-ic"><svg class="ic-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" /><path d="M3.5 13v3.25h13V13" /></svg><svg class="ic-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
-              <span class="tile-text"><b id="try-barem-name" data-try-pick-name>I upload the marking scheme</b><small data-try-pick-hint>PDF, Word or photos</small></span>
-              <span class="tile-go" aria-hidden="true" data-try-pick-action>Choose the file</span>
-            </label>
-            <label class="tile tile-choice">
-              <input type="checkbox" name="robotBarem" aria-label="I have no marking scheme: make it from the test" />
-              <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 2.75h7l3 3V9" /><path d="M4 2.75v14.5h5" /><path d="M11 13.5h6M14 10.5l3 3-3 3" /></svg></span>
-              <span class="tile-text" aria-hidden="true"><b>No marking scheme</b><small>Make it from the test</small></span>
-            </label>
-          </div>
-          <p class="step-note" data-try-robot-note hidden>The marking scheme is made from the test in a few minutes. You read it on the try's page before you start the grading.</p>
-        </div>
-        <div class="step" data-try-pick data-empty="Choose the files" data-hint="Photos or a PDF, at most 20 files">
-          <h3 class="step-t"><span class="num" aria-hidden="true">3</span><span id="try-pages-label">The student's paper</span></h3>
-          <div class="tiles">
-            <label class="tile">
-              <input class="try-pick-input" type="file" name="pages" multiple accept="image/jpeg,image/png,image/webp,application/pdf" aria-labelledby="try-pages-label try-pages-name" />
-              <span class="tile-ic"><svg class="ic-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" /><path d="M3.5 13v3.25h13V13" /></svg><svg class="ic-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg><svg class="ic-phone" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg></span>
-              <span class="tile-text"><b id="try-pages-name" data-try-pick-name>Choose the files</b><small data-try-pick-hint>Photos or a PDF, at most 20 files</small></span>
-              <span class="tile-go" aria-hidden="true" data-try-pick-action>Choose the files</span>
-            </label>
-            <button class="tile tile-phone" type="button" data-try-phone-pick hidden>
-              <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg></span>
-              <span class="tile-text"><b data-try-phone-pick-text>With the phone</b><small class="sub-qr" aria-hidden="true">You scan a QR code</small><small class="sub-cam" aria-hidden="true">With this phone's camera</small></span>
-            </button>
-            <button class="tile tile-undo" type="button" data-try-phone-undo hidden>
-              <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h10.5a3 3 0 0 1 0 6H9" /><path d="M7 4L4 7l3 3" /></svg></span>
-              <span class="tile-text"><b>Change</b><small aria-hidden="true">Choose files instead</small></span>
-            </button>
+          <div class="tile tile-sunk" data-try-from="phone" hidden>
+            <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg></span>
+            <span class="tile-text"><b data-try-phone-title>You take the photos with the phone, after you press Send</b><small data-try-phone-hint>One QR code for all the photos</small></span>
           </div>
         </div>
+        <div class="step" data-try-part="barem">
+          <div class="step-row">
+            <h3 class="step-t"><span class="num" aria-hidden="true">2</span><span id="try-barem-label">The marking scheme</span></h3>
+            <div class="seg" role="radiogroup" aria-label="Where the marking scheme comes from" data-try-seg data-try-own-seg hidden>
+              <label><input type="radio" name="baremFrom" value="file" /><span>File</span></label>
+              <label><input type="radio" name="baremFrom" value="phone" /><span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg><span data-try-phone-word>Phone</span></span></label>
+            </div>
+          </div>
+          <input type="radio" name="baremFrom" value="robot" checked hidden tabindex="-1" aria-hidden="true" />
+          <label class="tile" data-try-pick data-try-from="file" hidden data-empty="I upload the marking scheme" data-hint="PDF, Word or photos">
+            <input class="try-pick-input" type="file" name="barem" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" aria-labelledby="try-barem-label try-barem-name" />
+            <span class="tile-ic"><svg class="ic-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" /><path d="M3.5 13v3.25h13V13" /></svg><svg class="ic-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+            <span class="tile-text"><b id="try-barem-name" data-try-pick-name>I upload the marking scheme</b><small data-try-pick-hint>PDF, Word or photos</small></span>
+            <span class="tile-go" aria-hidden="true" data-try-pick-action>Choose the file</span>
+          </label>
+          <div class="tile tile-sunk" data-try-from="phone" hidden>
+            <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg></span>
+            <span class="tile-text"><b data-try-phone-title>You take the photos with the phone, after you press Send</b><small data-try-phone-hint>One QR code for all the photos</small></span>
+          </div>
+          <div class="tile tile-sunk tile-auto" data-try-from="robot">
+            <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 2.75h7l3 3V9" /><path d="M4 2.75v14.5h5" /><path d="M11 13.5h6M14 10.5l3 3-3 3" /></svg></span>
+            <span class="tile-text"><b>The marking scheme is made from the test</b><small>You find it on the try's page.</small></span>
+            <button class="tile-own" type="button" data-try-own-open>I have my own</button>
+          </div>
+          <button class="back-auto" type="button" data-try-own-close hidden>No marking scheme: make it from the test</button>
+        </div>
+        <div class="step" data-try-part="pages">
+          <div class="step-row">
+            <h3 class="step-t"><span class="num" aria-hidden="true">3</span><span id="try-pages-label">The student's paper</span></h3>
+            <div class="seg" role="radiogroup" aria-label="Where the paper comes from" data-try-seg hidden>
+              <label><input type="radio" name="pagesFrom" value="file" checked /><span>File</span></label>
+              <label><input type="radio" name="pagesFrom" value="phone" /><span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg><span data-try-phone-word>Phone</span></span></label>
+            </div>
+          </div>
+          <label class="tile" data-try-pick data-try-from="file" data-empty="Choose the files" data-hint="Photos or a PDF, at most 20 files">
+            <input class="try-pick-input" type="file" name="pages" multiple accept="image/jpeg,image/png,image/webp,application/pdf" aria-labelledby="try-pages-label try-pages-name" />
+            <span class="tile-ic"><svg class="ic-file" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" /><path d="M3.5 13v3.25h13V13" /></svg><svg class="ic-done" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+            <span class="tile-text"><b id="try-pages-name" data-try-pick-name>Choose the files</b><small data-try-pick-hint>Photos or a PDF, at most 20 files</small></span>
+            <span class="tile-go" aria-hidden="true" data-try-pick-action>Choose the files</span>
+          </label>
+          <div class="tile tile-sunk" data-try-from="phone" hidden>
+            <span class="tile-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg></span>
+            <span class="tile-text"><b data-try-phone-title>You take the photos with the phone, after you press Send</b><small data-try-phone-hint>One QR code for all the photos</small></span>
+          </div>
+        </div>
+        <p class="one-code" data-try-one-code hidden><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" /><path d="M9 15.5h2" /></svg><span data-try-one-code-text></span></p>
         <p class="try-error" data-try-error role="alert" hidden></p>
         <p class="try-recover" data-try-recover hidden>The try was made. <a class="link" data-try-recover-link href="/">Open the try</a> to send what is missing.</p>
         <p class="try-progress" data-try-progress aria-live="polite" hidden></p>
@@ -483,8 +508,8 @@
       </form>
       <div class="try-phone" data-try-phone hidden>
         <h2 id="try-phone-title" tabindex="-1">Take the photos with the phone</h2>
-        <p class="tryd-sub">The test and the marking scheme have arrived. Scan the code with the phone's camera and photograph the student's paper.</p>
-        <p class="step-note" data-try-phone-barem hidden>The marking scheme is being made from the test now. You read it on the try's page, then start the grading from there.</p>
+        <p class="tryd-sub" data-try-phone-sub>The test and the marking scheme have arrived. Scan the code with the phone's camera and photograph the student's paper.</p>
+        <p class="step-note" data-try-phone-barem hidden>The marking scheme is made from the test. You find it on the try's page.</p>
         <div class="try-phone-body">
           <div class="try-phone-code">
             <svg class="try-qr" data-try-qr shape-rendering="crispEdges" role="img" aria-label="QR code for the phone" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -492,6 +517,18 @@
             <p class="try-phone-note">The code works only for this try.</p>
           </div>
           <div class="try-phone-pages">
+            <ol class="ck-list" data-try-phone-parts hidden>
+              <li class="ck" data-try-phone-part="test">
+                <span class="ck-mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+                <span class="ck-text"><b>The test</b><small data-try-phone-part-text></small></span>
+                <label class="link ck-pick" data-try-phone-part-pick>Choose from the computer<input class="try-pick-input" type="file" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" aria-label="Choose the test from the computer" data-try-phone-part-files /></label>
+              </li>
+              <li class="ck" data-try-phone-part="barem">
+                <span class="ck-mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 10.5l3.5 3.5 7.5-8" /></svg></span>
+                <span class="ck-text"><b>The marking scheme</b><small data-try-phone-part-text></small></span>
+                <label class="link ck-pick" data-try-phone-part-pick>Choose from the computer<input class="try-pick-input" type="file" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" aria-label="Choose the marking scheme from the computer" data-try-phone-part-files /></label>
+              </li>
+            </ol>
             <h3 class="try-phone-count" aria-live="polite">Pages received <span class="try-chip is-ok" data-try-phone-count>0</span></h3>
             <ol class="try-phone-list" data-try-phone-list></ol>
             <div class="try-phone-live" aria-live="polite">

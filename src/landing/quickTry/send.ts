@@ -6,13 +6,15 @@ import {
   TEACHER_FILE_TYPES,
   TEACHER_WRONG_TYPE,
 } from '../../../shared/files.ts';
+import type { PhonePart } from '../../../shared/quickTry.ts';
 import { cleanTitle, MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
 import type { LandingApi } from './api.ts';
 import type { StoredTry } from './storage.ts';
 import { t } from '../../i18n/t.ts';
 
 // What the form holds (spec §3.2): the try's name, the test, her barem or
-// the robot's, and the student's pages.
+// the robot's, and the student's pages; each of the three may come from the
+// phone instead.
 export interface TryForm {
   // The name she writes; may be empty.
   title: string;
@@ -21,25 +23,30 @@ export interface TryForm {
   // "Nu am barem": the barem is made from the test. Her own file wins.
   robotBarem: boolean;
   pages: File[];
-  // "Cu telefonul": the pages come from the phone after the send, through
-  // the QR code; the form sends none and does not start the grading.
-  byPhone: boolean;
+  // The parts that come from the phone after the send, through one QR code
+  // (or this phone's camera): the form sends none of them and does not start
+  // the grading.
+  phone: PhonePart[];
 }
 
 // Why the form cannot be sent yet, in Romanian; null when it can. The files
 // are checked like the app's: the test and barem like a teacher's, the
 // pages like a student's.
 export function formProblem(form: TryForm): string | null {
-  if (!form.test) return t('Alege fișierul testului.');
-  const test = fileProblem(form.test, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
-  if (test) return t('Testul: {test}', { test });
-  if (form.barem) {
+  if (!form.phone.includes('test')) {
+    if (!form.test) return t('Alege fișierul testului.');
+    const test = fileProblem(form.test, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
+    if (test) return t('Testul: {test}', { test });
+  }
+  if (form.phone.includes('barem')) {
+    // From the phone.
+  } else if (form.barem) {
     const barem = fileProblem(form.barem, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE);
     if (barem) return t('Baremul: {barem}', { barem });
   } else if (!form.robotBarem) {
     return t('Alege fișierul baremului sau cere ca baremul să fie făcut din test.');
   }
-  if (form.byPhone) return null;
+  if (form.phone.includes('pages')) return null;
   if (form.pages.length === 0) return t('Alege pozele sau PDF-ul lucrării.');
   if (form.pages.length > MAX_STUDENT_FILES) return t('Poți trimite cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES });
   for (const page of form.pages) {
@@ -68,8 +75,10 @@ export interface SendEvents {
 
 // Makes the try and sends what the form holds, in order. With her barem the
 // grading starts at once; with the robot's she starts it on the try's page,
-// after she reads it (spec §3.3, state 2). With the phone it stops after
-// the barem. A refusal throws its ApiError.
+// after she reads it (spec §3.3, state 2). With a part from the phone it sends
+// the rest and starts nothing; the robot's barem is asked for once the test is
+// there (with the test from the phone, the phone asks). A refusal throws its
+// ApiError.
 export async function sendTry(
   api: LandingApi,
   form: TryForm,
@@ -81,22 +90,25 @@ export async function sendTry(
   const { token, code } = await api.create(turnstileToken, tryTitle(form));
   const stored: StoredTry = { token, code, madeAt: now().toISOString() };
   events.onCreated(stored);
-  events.onProgress(t('Se trimite testul…'));
-  await api.uploadTestFile(token, code, 'test', form.test!);
-  if (form.barem) {
+  const phone = (part: PhonePart) => form.phone.includes(part);
+  if (!phone('test') && form.test) {
+    events.onProgress(t('Se trimite testul…'));
+    await api.uploadTestFile(token, code, 'test', form.test);
+  }
+  if (!phone('barem') && form.barem) {
     events.onProgress(t('Se trimite baremul…'));
     await api.uploadTestFile(token, code, 'barem', form.barem);
-  } else {
+  } else if (!phone('barem') && form.robotBarem && !phone('test')) {
     events.onProgress(t('Se cere baremul…'));
     await api.generateBarem(token, code);
   }
-  // With the phone, the QR window takes the pages and starts the grading.
-  if (form.byPhone) return stored;
+  // With the phone, the QR window takes the rest and starts the grading.
+  if (phone('pages')) return stored;
   for (const [index, page] of form.pages.entries()) {
     events.onProgress(t('Se trimit paginile lucrării: {v1} din {length}…', { v1: index + 1, length: form.pages.length }));
     await api.addPage(token, page);
   }
-  if (form.barem) {
+  if (form.barem && form.phone.length === 0) {
     events.onProgress(t('Se pornește corectarea…'));
     await api.start(token);
   }

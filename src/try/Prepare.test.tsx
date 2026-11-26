@@ -298,6 +298,23 @@ describe("the phone's code on a try's page", () => {
     expect(await screen.findByText('Pagina 1')).toBeInTheDocument();
   });
 
+  it('shows a test that arrives from the phone while the code is open, and stops reading the test once it has both files', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { api } = setup({ files: { test: null, barem: baremFile } }, []);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await phoneButton());
+    await api.uploadTestFile('PROBA-26T1', 'test', new File(['%PDF'], 'Testul.pdf', { type: PDF_TYPE }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS);
+    });
+    expect(await screen.findByRole('link', { name: 'Testul.pdf' })).toBeInTheDocument();
+    const reads = api.getTest.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PHONE_REFRESH_MS * 3);
+    });
+    expect(api.getTest).toHaveBeenCalledTimes(reads);
+  });
+
   it('closes the large page when the phone deletes that page', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { tryApi } = setup();
