@@ -185,6 +185,7 @@ export interface AdminApi {
   // The usage statistics of a period (administrators only).
   getUsage(source: UsageSource, period: UsagePeriod): Promise<UsageStats>;
   updateSettings(maxParallelAgents: number): Promise<Settings>;
+  setMaxParallelTries(maxParallelTries: number): Promise<Settings>;
   // The Model column of the class report, for all tests.
   setShowModelColumn(show: boolean): Promise<Settings>;
   // A new robot key: the only time the app sees it.
@@ -469,6 +470,8 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     getUsage: async (source, period) => (await request<{ stats: UsageStats }>('GET', `/stats?source=${source}&period=${period}`)).stats,
     updateSettings: async (maxParallelAgents) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelAgents })).settings,
+    setMaxParallelTries: async (maxParallelTries) =>
+      (await request<{ settings: Settings }>('PATCH', '/settings', { maxParallelTries })).settings,
     setShowModelColumn: async (showModelColumn) =>
       (await request<{ settings: Settings }>('PATCH', '/settings', { showModelColumn })).settings,
     newRobotKey: async () => (await request<{ key: string }>('POST', '/settings/robot-key')).key,

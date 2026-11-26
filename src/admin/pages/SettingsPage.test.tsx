@@ -20,7 +20,7 @@ describe('SettingsPage', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     const api = withSettings();
     renderAdmin(ROBOT, api);
-    expect(await screen.findByText('Robotul nu a terminat încă nicio rulare.')).toBeInTheDocument();
+    expect(await screen.findAllByText('Robotul nu a terminat încă nicio rulare.')).toHaveLength(2);
     expect(api.getSettings).toHaveBeenCalledTimes(1);
     await act(async () => {
       vi.advanceTimersByTime(60_000);
@@ -112,7 +112,8 @@ describe('SettingsPage', () => {
 
   it('shows no count on Conturi when no account waits', async () => {
     renderAdmin(ROBOT, withSettings());
-    await screen.findByText('Robotul nu a terminat încă nicio rulare.');
+    // Both robots say it: the page has loaded.
+    await screen.findAllByText('Robotul nu a terminat încă nicio rulare.');
     expect(screen.getByRole('tab', { name: 'Conturi' })).toBeInTheDocument();
   });
 
@@ -126,6 +127,22 @@ describe('SettingsPage', () => {
     expect(api.updateSettings).toHaveBeenCalledWith(3);
     expect(await screen.findByRole('status')).toHaveTextContent('Salvat.');
     expect(screen.getByLabelText('Lucrări corectate deodată')).toHaveValue('3');
+  });
+
+  it('saves the Quick Tries at once when chosen', async () => {
+    const api = withSettings();
+    renderAdmin(GRADING, api);
+    const select = await screen.findByLabelText('Încercări rapide deodată');
+    expect(select).toHaveValue('2');
+    expect(select).toHaveAccessibleDescription(
+      'Câte încercări rapide face robotul lor în același timp. Mai multe deodată răspund mai repede, dar ajung mai repede la limita planului Claude.',
+    );
+    await userEvent.selectOptions(select, '3');
+    expect(api.setMaxParallelTries).toHaveBeenCalledWith(3);
+    expect(api.updateSettings).not.toHaveBeenCalled();
+    expect(await screen.findByRole('status')).toHaveTextContent('Salvat.');
+    expect(screen.getByLabelText('Încercări rapide deodată')).toHaveValue('3');
+    expect(screen.getByLabelText('Lucrări corectate deodată')).toHaveValue('1');
   });
 
   it('shows the chosen number at once and keeps the select on while it saves', async () => {
@@ -152,7 +169,8 @@ describe('SettingsPage', () => {
   it('shows the model and effort of the latest grading and class analysis, and nothing when there are none', async () => {
     const none = withSettings();
     renderAdmin(ROBOT, none);
-    await screen.findByText('Robotul nu a terminat încă nicio rulare.');
+    // Both robots say it: the page has loaded.
+    await screen.findAllByText('Robotul nu a terminat încă nicio rulare.');
     expect(screen.queryByText(/Ultima corectare/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Ultima analiză a clasei/)).not.toBeInTheDocument();
   });
@@ -180,7 +198,8 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('Setat pentru robot: sonnet (la ultima verificare, acum 5 min)')).toBeInTheDocument();
     first.unmount();
     renderAdmin(ROBOT, withSettings());
-    await screen.findByText('Robotul nu a terminat încă nicio rulare.');
+    // Both robots say it: the page has loaded.
+    await screen.findAllByText('Robotul nu a terminat încă nicio rulare.');
     expect(screen.queryByText(/Setat pentru robot/)).not.toBeInTheDocument();
   });
 
@@ -246,12 +265,33 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Ultima lucrare corectată: 7 oct. 2026, 11:55.')).toBeInTheDocument();
   });
 
+  it('shows both robots', async () => {
+    const settings = fakeSettings({
+      tryRobot: {
+        running: true,
+        lastCheckAt: new Date(Date.now() - 60_000).toISOString(),
+        lastRunFinishedAt: '2026-10-07T09:00:00.000Z',
+        lastRunSummary: { exerciseLists: 1, graded: 1, failed: 0, analyses: 0, prints: 0, barems: 1, stop: 'done' },
+      },
+    });
+    renderAdmin(ROBOT, withSettings(settings));
+    const teachers = await screen.findByRole('region', { name: 'Robotul pentru profesori' });
+    expect(within(teachers).getByText('nu lucrează acum')).not.toHaveClass('tag-ok');
+    expect(within(teachers).getByText('Robotul nu a terminat încă nicio rulare.')).toBeInTheDocument();
+    const tries = screen.getByRole('region', { name: 'Robotul pentru încercări rapide' });
+    expect(within(tries).getByText('lucrează acum')).toHaveClass('tag-ok');
+    expect(
+      within(tries).getByText('Ultima rulare s-a încheiat la 7 oct. 2026, 12:00: 1 listă de exerciții, 1 lucrare corectată, 0 lucrări eșuate. A terminat toată munca.'),
+    ).toBeInTheDocument();
+  });
+
   it('says when the robot never ran', async () => {
     renderAdmin(ROBOT, withSettings());
-    expect(await screen.findByText('Robotul nu a terminat încă nicio rulare.')).toBeInTheDocument();
-    expect(screen.getByText('nu lucrează acum')).not.toHaveClass('tag-ok');
+    const teachers = await screen.findByRole('region', { name: 'Robotul pentru profesori' });
+    expect(within(teachers).getByText('Robotul nu a terminat încă nicio rulare.')).toBeInTheDocument();
+    expect(within(teachers).getByText('nu lucrează acum')).not.toHaveClass('tag-ok');
     expect(screen.getByText('Nicio lucrare nu a fost corectată încă.')).toBeInTheDocument();
-    expect(screen.getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
+    expect(within(teachers).getByText('Robotul nu a verificat încă dacă are lucrări de corectat.')).toBeInTheDocument();
   });
 });
 

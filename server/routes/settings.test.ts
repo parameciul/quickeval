@@ -23,9 +23,11 @@ describe('GET /api/admin/settings', () => {
     expect(res.body).toEqual({
       settings: {
         maxParallelAgents: 1,
+        maxParallelTries: 2,
         hasRobotKey: false,
         robotKeyAt: null,
         robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
+        tryRobot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
         lastGradedAt: null,
         lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
         showModelColumn: false,
@@ -91,6 +93,36 @@ describe('PATCH /api/admin/settings', () => {
     const res = await api.request('PATCH', '/api/admin/settings', { maxParallelAgents: value });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Alege între 1 și 4 lucrări corectate deodată.');
+  });
+  it('reads 2 Quick Tries at once by default', async () => {
+    expect((await api.request('GET', '/api/admin/settings')).body.settings.maxParallelTries).toBe(2);
+  });
+
+  it('saves the Quick Tries at once', async () => {
+    await api.request('PATCH', '/api/admin/settings', { maxParallelAgents: 3 });
+    const res = await api.request('PATCH', '/api/admin/settings', { maxParallelTries: 4 });
+    expect(res.status).toBe(200);
+    expect(res.body.settings).toMatchObject({ maxParallelTries: 4, maxParallelAgents: 3 });
+    expect((await api.request('GET', '/api/admin/settings')).body.settings.maxParallelTries).toBe(4);
+  });
+
+  it.each([0, 5, 1.5, '2'])('refuses %j Quick Tries at once', async (value) => {
+    const res = await api.request('PATCH', '/api/admin/settings', { maxParallelTries: value });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Alege între 1 și 4 încercări rapide deodată.');
+  });
+
+  it("answers the refusal in English when the page asks", async () => {
+    const res = await api.request('PATCH', '/api/admin/settings', { maxParallelTries: 9 }, { 'X-MQ-Lang': 'en' });
+    expect(res.body.message).toBe('Choose between 1 and 4 Quick Tries at once.');
+  });
+
+  it("shows the try robot's own state", async () => {
+    const fresh = new Date(Date.now() - 60_000).toISOString();
+    await api.db.prepare("UPDATE runner_state SET run_id = 'try-run-00001', heartbeat_at = ?, last_check_at = ? WHERE id = 2").bind(fresh, fresh).run();
+    const settings = (await api.request('GET', '/api/admin/settings')).body.settings;
+    expect(settings.tryRobot).toMatchObject({ running: true, lastCheckAt: fresh });
+    expect(settings.robot.running).toBe(false);
   });
 });
 

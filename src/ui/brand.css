@@ -8613,6 +8613,27 @@ a.ticket-qr {
   margin-bottom: 0;
 }
 
+/* "Starea robotului": the teachers' robot, then the Quick Try robot, each
+   under a small head with its own tag. */
+.robot-lane + .robot-lane {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.robot-lane-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.robot-lane-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .settings-key {
   margin: 0 1.25rem 1.25rem;
 }

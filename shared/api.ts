@@ -13,7 +13,7 @@ import {
 } from './accounts.ts';
 import { normalizeClassName } from './classes.ts';
 import type { TestFileKind, TestVariant } from './files.ts';
-import { MAX_PARALLEL_AGENTS, type RunSummary } from './runner.ts';
+import { MAX_PARALLEL_AGENTS, MAX_PARALLEL_TRIES, type RunSummary } from './runner.ts';
 import { type AnswerArea, type ClassAnalysis, TEXT_LIMITS, type Confidence } from './schemas.ts';
 import { isValidSchoolYear } from './schoolYear.ts';
 import { cleanStudentName, MAX_NAME_LENGTH, MAX_NAMES_PER_REQUEST, studentNameKey } from './students.ts';
@@ -190,6 +190,8 @@ export const evaluateTestBody = z.object({
 
 const PARALLEL_MESSAGE = `Alege între 1 și ${MAX_PARALLEL_AGENTS} lucrări corectate deodată.`;
 
+const TRIES_MESSAGE = `Alege între 1 și ${MAX_PARALLEL_TRIES} încercări rapide deodată.`;
+
 const SHOW_MODEL_MESSAGE = 'Alege dacă se arată coloana Model.';
 
 // Each field is optional: a request changes the settings it names.
@@ -201,11 +203,19 @@ export const updateSettingsBody = z
       .min(1, { message: PARALLEL_MESSAGE })
       .max(MAX_PARALLEL_AGENTS, { message: PARALLEL_MESSAGE })
       .optional(),
+    maxParallelTries: z
+      .number({ message: TRIES_MESSAGE })
+      .int({ message: TRIES_MESSAGE })
+      .min(1, { message: TRIES_MESSAGE })
+      .max(MAX_PARALLEL_TRIES, { message: TRIES_MESSAGE })
+      .optional(),
     showModelColumn: z.boolean({ message: SHOW_MODEL_MESSAGE }).optional(),
   })
   // A body with no known field changes nothing: it is refused like a missing
   // number of uploads at a time.
-  .refine((body) => body.maxParallelAgents !== undefined || body.showModelColumn !== undefined, { message: PARALLEL_MESSAGE });
+  .refine((body) => body.maxParallelAgents !== undefined || body.maxParallelTries !== undefined || body.showModelColumn !== undefined, {
+    message: PARALLEL_MESSAGE,
+  });
 
 const EMAIL_MESSAGE = 'Scrie o adresă de email validă.';
 const PASSWORD_MESSAGE = `Parola are între ${MIN_PASSWORD_LENGTH} și ${MAX_PASSWORD_LENGTH} de caractere.`;
@@ -950,12 +960,16 @@ export interface RobotStatus {
 }
 
 export interface Settings {
-  // How many uploads the robot grades at the same time.
+  // How many uploads the teachers' robot grades at the same time.
   maxParallelAgents: number;
+  // How many Quick Tries the Quick Try robot works on at the same time.
+  maxParallelTries: number;
   hasRobotKey: boolean;
   // When the robot's key was made; null for a key made before this was kept.
   robotKeyAt: string | null;
+  // The teachers' robot (lane main) and the Quick Try robot (lane try).
   robot: RobotStatus;
+  tryRobot: RobotStatus;
   // When one of this teacher's uploads was last graded.
   lastGradedAt: string | null;
   // Over all this teacher's tests.
