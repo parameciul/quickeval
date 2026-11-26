@@ -12,6 +12,31 @@ export const LEASE_STALE_MS = 15 * 60 * 1000;
 
 export const MAX_PARALLEL_AGENTS = 4;
 
+// The robot's two lanes: the teachers' robot (main) and the Quick Try robot
+// (try). Each has its own lease row in runner_state and sees only the work of
+// its own tests (tests.quick_try). The robot names its lane with ?lane=try;
+// none is main, as an older robot asks.
+export const ROBOT_LANES = ['main', 'try'] as const;
+export type RobotLane = (typeof ROBOT_LANES)[number];
+export const LANE_ROW: Record<RobotLane, 1 | 2> = { main: 1, try: 2 };
+
+// The lane a request names: absent is main; anything else but "try" is no lane.
+export function parseLane(raw: string | undefined): RobotLane | null {
+  if (raw === undefined) return 'main';
+  return raw === 'try' ? 'try' : null;
+}
+
+// How many Quick Tries the try robot works on at once (Setări).
+export const MAX_PARALLEL_TRIES = 4;
+
+// An open page starts a stopped lane again (claimRobotRestart): never before a
+// run counts as dead, and at most once in this time.
+export const ROBOT_RESTART_MS = LEASE_STALE_MS;
+// After a run that stopped at the Claude plan's limit, the lane waits this
+// long. The teachers' robot waits an hour: the limit comes back after hours.
+// The Quick Try robot tries again sooner, because a person waits for it.
+export const RESTART_AFTER_LIMIT_MS: Record<RobotLane, number> = { main: 60 * 60_000, try: ROBOT_RESTART_MS };
+
 // The largest body of an exercise list or a result, in bytes. A grading of 60
 // exercises with every text at its limit is far smaller; the saved raw output
 // then stays well under D1's 2 MB row limit.

@@ -109,6 +109,8 @@ describe('the subject found with the exercise list', () => {
 
   it('ends a Quick Try whose subject is not graded as failed, with the message', async () => {
     await setTest('quick_try = 1');
+    // A Quick Try is the Quick Try robot's work: its lane's lease.
+    await robot('POST', '/lease?lane=try', { runId: RUN });
     expect((await saveList({ subject: 'alta', subjectName: 'istorie' })).body).toEqual({ exerciseList: { status: 'failed', message: HISTORY } });
   });
 });
@@ -136,6 +138,7 @@ describe('the subject found with a generated barem', () => {
 
   it('ends a Quick Try whose subject is not graded', async () => {
     await setTest('quick_try = 1');
+    await robot('POST', '/lease?lane=try', { runId: RUN });
     expect((await putBarem({ 'X-Subject': 'alta', 'X-Subject-Name': encodeURIComponent('istorie') })).status).toBe(200);
     expect(await row()).toMatchObject({ subject: 'alta', exercise_list_status: 'failed', exercise_list_message: HISTORY });
   });

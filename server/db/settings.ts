@@ -1,20 +1,28 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { Settings, TestDetail } from '../../shared/api.ts';
-import { LEASE_STALE_MS, MAX_PARALLEL_AGENTS, runSummarySchema, type RunSummary } from '../../shared/runner.ts';
+import { LEASE_STALE_MS, MAX_PARALLEL_AGENTS, MAX_PARALLEL_TRIES, runSummarySchema, type RobotLane, type RunSummary } from '../../shared/runner.ts';
 
 // System-wide settings (spec §7.1). v1 has one teacher, so any teacher may
 // change them.
 
 const PARALLEL = 'max_parallel_agents';
+// "Încercări rapide deodată": how many Quick Tries the try robot works on at once.
+const PARALLEL_TRIES = 'max_parallel_tries';
 const ROBOT_KEY_HASH = 'runner_key_hash';
 const ROBOT_KEY_AT = 'runner_key_at';
 const SHOW_MODEL = 'show_model_column';
 
 export const DEFAULT_PARALLEL_AGENTS = 1;
+export const DEFAULT_PARALLEL_TRIES = 2;
 
 function parseParallel(raw: string | null): number {
   const value = Number(raw);
   return Number.isInteger(value) && value >= 1 && value <= MAX_PARALLEL_AGENTS ? value : DEFAULT_PARALLEL_AGENTS;
+}
+
+function parseTries(raw: string | null): number {
+  const value = Number(raw);
+  return raw !== null && Number.isInteger(value) && value >= 1 && value <= MAX_PARALLEL_TRIES ? value : DEFAULT_PARALLEL_TRIES;
 }
 
 function parseSummary(raw: string | null): RunSummary | null {
@@ -111,9 +119,12 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
   };
 }
 
-export async function getMaxParallel(db: D1Database): Promise<number> {
-  const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(PARALLEL).first<{ value: string }>();
-  return parseParallel(row?.value ?? null);
+// The number of tasks a lane's run works on at once: papers for the teachers'
+// robot, Quick Tries for the try robot.
+export async function getMaxParallel(db: D1Database, lane: RobotLane = 'main'): Promise<number> {
+  const key = lane === 'try' ? PARALLEL_TRIES : PARALLEL;
+  const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>();
+  return lane === 'try' ? parseTries(row?.value ?? null) : parseParallel(row?.value ?? null);
 }
 
 export async function setMaxParallel(db: D1Database, value: number): Promise<void> {
