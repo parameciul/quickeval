@@ -726,7 +726,7 @@ export const ADMIN = {
   "{todayLine} · Trei pași până la primul test corectat.": "{todayLine} · Three steps to your first graded test.",
   "· Nimic nu te așteaptă acum.": "· Nothing is waiting for you now.",
   "Toate clasele": "All classes",
-  "Arată și testele arhivate": "Also show the archived tests",
+  "{name} · cu arhivate": "{name} · with archived",
   "Nu ai niciun test în acest an școlar.": "You have no test in this school year.",
   "Nu ai teste pentru această alegere.": "You have no tests for this choice.",
   "În lucru": "In progress",

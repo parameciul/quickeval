@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { TestSummary } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
@@ -11,15 +11,20 @@ import { nextStep } from './nextStep.ts';
 import { ActionIcon, actionIconFor } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
 
-// "În lucru" or "Terminate" on the Teste page (redesign spec §5): a table
-// with the test, its stage, its papers and the next step. `first` is the
-// test of the first thing in "De făcut": its button is the filled one.
+// "În lucru" or "Terminate" on the Teste page (redesign spec §5): the group's
+// title and count over its card, then a table with the test, its stage, its
+// papers and the next step. Only the first group shows the column names; the
+// others keep them for screen readers, and every table shares the column
+// widths, so the groups line up. `first` is the test of the first thing in
+// "De făcut": its button is the filled one.
 export function TestGroup({
   title,
   tests,
   first,
   focusCode,
   onPublished,
+  columns = true,
+  extra,
 }: {
   title: string;
   tests: TestSummary[];
@@ -28,14 +33,29 @@ export function TestGroup({
   // and how a row reports that it published.
   focusCode: string | null;
   onPublished: (code: string | null) => void;
+  // Whether the column names show; what stands at the right of the title.
+  columns?: boolean;
+  extra?: ReactNode;
 }) {
   const id = useId();
   return (
     <section className="test-group" aria-labelledby={id}>
-      <h2 id={id}>{title}</h2>
-      <div className="table-wrap">
+      <div className="group-head">
+        <div className="group-title">
+          <h2 id={id}>{title}</h2>
+          <span className="tag">{tests.length}</span>
+        </div>
+        {extra}
+      </div>
+      <div className="table-wrap test-group-card">
         <table className="tests" aria-labelledby={id}>
-          <thead>
+          <colgroup>
+            <col className="col-test" />
+            <col className="col-stage" />
+            <col className="col-num" />
+            <col />
+          </colgroup>
+          <thead className={columns ? undefined : 'sr-only-head'}>
             <tr>
               <th scope="col">{t('Test')}</th>
               <th scope="col">{t('Etapa')}</th>

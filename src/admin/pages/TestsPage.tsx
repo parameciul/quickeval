@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { displayClassName } from '../../../shared/classes.ts';
 import { countLabel } from '../../ui/format.ts';
 import { useNow } from '../../ui/useNow.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
 import { inWork, todoList } from '../shell/todo.ts';
+import { ClassFilter } from '../testsPage/ClassFilter.tsx';
 import { FirstSteps } from '../testsPage/FirstSteps.tsx';
 import { greeting, todayLine, welcome } from '../testsPage/greeting.ts';
 import { TestGroup } from '../testsPage/TestGroup.tsx';
@@ -16,9 +16,9 @@ import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
 
 // The start page (redesign spec §5): a greeting with what waits on the
-// teacher, the class chips, and the tests of the selected school year in two
-// groups, newest first. The class and the archived choice live in the
-// address, so a link or a reload keeps them. A new teacher (no test in the
+// teacher, and the tests of the selected school year in two groups, newest
+// first, with the class filter beside the first group's title. The class and
+// the archived choice live in the address, so a link or a reload keeps them. A new teacher (no test in the
 // year, and none ever sent to grading) sees "Bun venit" and "Primii pași"
 // instead (redesign spec §11.9).
 export function TestsPage() {
@@ -62,6 +62,17 @@ export function TestsPage() {
   const first = todo[0]?.code ?? null;
   const firstVisit = tests.data?.length === 0 && me.data?.testsEvaluated === 0;
   const hasClass = classes.data?.some((item) => !item.archived) ?? false;
+  const groupShown = !classes.isPending && (working.length > 0 || finished.length > 0);
+  const filter = tests.data && (
+    <ClassFilter
+      classes={classes.data ?? []}
+      tests={tests.data}
+      chosenClass={chosenClass}
+      showArchived={showArchived}
+      onClass={(classId) => change('class', classId === null ? null : String(classId))}
+      onArchived={(show) => change('archived', show ? '1' : null)}
+    />
+  );
 
   if (tests.isPending && me.data?.testsEvaluated === 0) return <p>{t('Se încarcă…')}</p>;
   if (firstVisit) {
@@ -114,32 +125,31 @@ export function TestsPage() {
       </div>
       {todo.length > 0 && <TodoRows id="todo-inline" items={todo} hidden={!todoOpen} />}
 
-      <div className="filters">
-        <div className="chips" role="group" aria-label={t('Clasa')}>
-          <button type="button" className="chip" aria-pressed={chosenClass === null} onClick={() => change('class', null)}>
-            {t('Toate clasele')}
-          </button>
-          {classes.data?.map((item) => (
-            <button key={item.id} type="button" className="chip" aria-pressed={item.id === chosenClass} onClick={() => change('class', String(item.id))}>
-              {displayClassName(item.name)}
-            </button>
-          ))}
-        </div>
-        <label className="check-label">
-          <input type="checkbox" checked={showArchived} onChange={(event) => change('archived', event.target.checked ? '1' : null)} />
-          {t('Arată și testele arhivate')}
-        </label>
-      </div>
       {classes.error && <ErrorMessage error={classes.error} />}
 
       {tests.isPending && <p>{t('Se încarcă…')}</p>}
       {tests.error && <ErrorMessage error={tests.error} />}
+      {/* The class filter stands at the right of the first group's title, or
+          on a line of its own when no group shows. */}
+      {!groupShown && filter && <div className="group-head is-filter-only">{filter}</div>}
       {tests.data && tests.data.length === 0 && <p className="hint">{t('Nu ai niciun test în acest an școlar.')}</p>}
       {tests.data && tests.data.length > 0 && visible?.length === 0 && !classes.isPending && (
         <p className="hint">{t('Nu ai teste pentru această alegere.')}</p>
       )}
-      {!classes.isPending && working.length > 0 && <TestGroup title={t('În lucru')} tests={working} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
-      {!classes.isPending && finished.length > 0 && <TestGroup title={t('Terminate')} tests={finished} first={first} focusCode={focusCode} onPublished={setFocusCode} />}
+      {groupShown && working.length > 0 && (
+        <TestGroup title={t('În lucru')} tests={working} first={first} focusCode={focusCode} onPublished={setFocusCode} extra={filter} />
+      )}
+      {groupShown && finished.length > 0 && (
+        <TestGroup
+          title={t('Terminate')}
+          tests={finished}
+          first={first}
+          focusCode={focusCode}
+          onPublished={setFocusCode}
+          columns={working.length === 0}
+          extra={working.length === 0 ? filter : undefined}
+        />
+      )}
     </section>
   );
 }
