@@ -315,6 +315,55 @@ describe('TestsPage, what waits', () => {
     expect(finished.querySelector('thead')).not.toHaveClass('quiet-head');
   });
 
+  it("marks each row with its class's colour and shows the average as a grade chip", async () => {
+    renderAdmin(
+      '/',
+      createFakeApi({
+        classes: oneClass,
+        students: {},
+        tests: [
+          fakeTest({ code: '6E2-26T2', title: 'Logaritmi', status: 'done', resultsOpen: true, ...ready, ...started }, [
+            fakeUpload({ studentId: 10, studentName: 'Pop Ion', status: 'graded', submissionId: 5, grade: 9 }),
+          ]),
+          fakeTest({ code: '6E2-26T1', title: 'Ecuații', status: 'open', ...ready, ...started }),
+        ],
+      }),
+    );
+    const done = await findRow('Logaritmi');
+    const dot = done.querySelector('.test-sub .class-dot');
+    expect(dot).toHaveAttribute('aria-hidden', 'true');
+    expect(dot).toHaveStyle({ '--tone-hue': '138' });
+    expect(stageText(done)).toHaveTextContent('Rezultate · publicate · media testului 9');
+    const chip = stageText(done)!.querySelector('.grade-chip');
+    expect(chip).toHaveTextContent('9');
+    expect(chip).toHaveClass('points-5');
+    // A test with no average keeps its words, with no chip.
+    expect(stageText(rowOf('Ecuații'))!.querySelector('.grade-chip')).toBeNull();
+  });
+
+  it('opens the test on a click anywhere on its row, but not on its buttons or with a key held', async () => {
+    const api = createFakeApi({
+      classes: oneClass,
+      students: {},
+      tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții', status: 'done', ...ready, ...started }, [
+        fakeUpload({ studentId: 10, studentName: 'Pop Ion', status: 'graded', submissionId: 5, grade: 9 }),
+      ])],
+    });
+    renderAdmin('/', api, <LocationProbe />);
+    const row = await findRow('Fracții');
+    await userEvent.click(within(row).getByRole('button', { name: 'Publică rezultatele: Fracții, Clasa 6E2' }));
+    expect(api.setResultsOpen).toHaveBeenCalledWith('6E2-26T1', true);
+    await expectLocation(/^\/$/);
+    const cell = (await findRow('Fracții')).querySelector('td.num')!;
+    const user = userEvent.setup();
+    await user.keyboard('{Control>}');
+    await user.click(cell);
+    await user.keyboard('{/Control}');
+    await expectLocation(/^\/$/);
+    await user.click(cell);
+    await expectLocation('/tests/6E2-26T1');
+  });
+
   it('leaves out a group with no test', async () => {
     renderAdmin('/', createFakeApi({ classes: oneClass, students: {}, tests: [fakeTest({ code: '6E2-26T1', title: 'Fracții' })] }));
     expect(await screen.findByRole('region', { name: 'În lucru' })).toBeInTheDocument();

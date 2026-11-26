@@ -2136,11 +2136,17 @@ table.tests tbody th {
 }
 
 /* The test's name is a link, as a student's name in the papers table: blue,
-   no bold, underlined under the pointer. */
+   no bold, underlined under the pointer, a step larger than the text. */
 .test-name a {
   color: var(--ink);
+  font-size: 1rem;
   font-weight: 400;
   text-decoration: none;
+}
+
+/* The row under the pointer is lighter, as in the papers table. */
+table.tests tbody tr:hover > * {
+  background: var(--raised);
 }
 
 .test-name a:hover {
@@ -2155,6 +2161,28 @@ table.tests tbody th {
   display: block;
   color: var(--muted);
   font-size: 0.8125rem;
+}
+
+/* The class's colour before its name, as in the class menu and "Clasele
+   tale", so a class's tests are found at a glance. */
+.test-sub .class-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.375rem;
+  vertical-align: 0.05em;
+}
+
+/* The whole row opens the test. */
+table.tests tbody tr {
+  cursor: pointer;
+}
+
+/* The average, in the colour of its grade, at the size of the stage's words. */
+.grade-chip.is-small {
+  min-width: 0;
+  padding: 0 0.45rem;
+  line-height: 1.35rem;
 }
 
 table.tests tr.is-muted .test-name a {
@@ -2269,6 +2297,10 @@ table.tests .row-actions {
 
   table.tests tbody tr:first-child {
     border-top: 0;
+  }
+
+  table.tests tbody tr:hover > * {
+    background: none;
   }
 
   .todo-rows li {
