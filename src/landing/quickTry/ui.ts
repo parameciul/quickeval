@@ -6,7 +6,7 @@ import { countLabel, formatDate, formatDateTime, formatFileSize } from '../../ui
 import { checkPick, picturesToPdf, type MakePdf, type PickCheck } from '../../ui/picturesPdf.ts';
 import { countVisitEvent } from '../../ui/visits.ts';
 import type { LandingApi } from './api.ts';
-import { openPhoneStep, phoneWords, type PhoneStep } from './phone.ts';
+import { openPhoneStep, type PhoneStep } from './phone.ts';
 import { drawQr } from './qr.ts';
 import { formProblem, sendTry, type TryForm } from './send.ts';
 import { canStart, statusOf, type StartAnswer } from './status.ts';
@@ -125,10 +125,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
   // The window's × and "Renunță".
   const closeButtons = Array.from(form.querySelectorAll<HTMLButtonElement>('[data-try-close]'));
   const turnstileBox = form.querySelector<HTMLElement>('[data-try-turnstile]')!;
-  const allPhone = form.querySelector<HTMLButtonElement>('[data-try-all]')!;
-  const allHint = form.querySelector<HTMLElement>('[data-try-all-hint]')!;
-  const oneCode = form.querySelector<HTMLElement>('[data-try-one-code]')!;
-  const oneCodeText = form.querySelector<HTMLElement>('[data-try-one-code-text]')!;
   // The barem is made from the test unless she has her own: its choices hide
   // behind "Am baremul meu", and a link goes back.
   const ownSeg = form.querySelector<HTMLElement>('[data-try-own-seg]')!;
@@ -279,28 +275,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
     const own = fromOf('barem') !== 'robot';
     ownSeg.hidden = !own;
     ownClose.hidden = !own;
-    const phone = phoneParts();
-    const all = allOnPaper();
-    allPhone.setAttribute('aria-pressed', String(all));
-    allHint.textContent = all
-      ? here
-        ? t('Faci toate pozele cu acest telefon, după ce apeși Trimite')
-        : t('Faci toate pozele cu telefonul, cu un singur cod QR')
-      : own
-        ? here
-          ? t('Fac poze la test, barem și lucrare, cu acest telefon')
-          : t('Fac poze la test, barem și lucrare, cu telefonul')
-        : here
-          ? t('Fac poze la test și lucrare, cu acest telefon')
-          : t('Fac poze la test și lucrare, cu telefonul');
-    oneCode.hidden = phone.length === 0 || all;
-    const named = phoneWords(phone);
-    if (here) oneCodeText.textContent = t('După Trimite, camera se deschide pentru {parts}.', { parts: named });
-    else {
-      const bold = document.createElement('b');
-      bold.textContent = t('Un singur cod QR');
-      oneCodeText.replaceChildren(bold, ' ', t('pentru {parts}. Îl scanezi după ce apeși Trimite.', { parts: named }));
-    }
   }
 
   // A part that leaves its file forgets the file picked for it.
@@ -319,27 +293,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       });
     }
   }
-
-  // Everything on paper: the test and the pages from the phone, and the barem
-  // made from the test or photographed too.
-  function allOnPaper(): boolean {
-    return fromOf('test') === 'phone' && fromOf('pages') === 'phone' && fromOf('barem') !== 'file';
-  }
-
-  allPhone.addEventListener('click', () => {
-    const all = allOnPaper();
-    for (const part of ['test', 'pages'] as const) {
-      setFrom(part, all ? 'file' : 'phone');
-      if (!all) forgetFile(part);
-    }
-    // Her own barem follows; the one made from the test stays.
-    if (all && fromOf('barem') === 'phone') setFrom('barem', 'robot');
-    if (!all && fromOf('barem') === 'file') {
-      setFrom('barem', 'phone');
-      forgetFile('barem');
-    }
-    sync();
-  });
 
   ownOpen.addEventListener('click', () => {
     setFrom('barem', 'file');
@@ -365,7 +318,6 @@ export async function initQuickTry(root: Document, deps: QuickTryDeps): Promise<
       hint.textContent = here ? t('Camera se deschide pas cu pas') : t('Același cod QR pentru toate pozele');
     }
     for (const seg of form!.querySelectorAll<HTMLElement>('[data-try-seg]')) seg.hidden = false;
-    allPhone.hidden = false;
     sync();
   }
   applyDevice();

@@ -539,18 +539,6 @@ label.tile.is-chosen { border-color: var(--ok-fg); background: var(--ok-bg); }
 .tile-own { padding: 8px 0 8px 12px; }
 .back-auto { justify-self: start; }
 .tile-own:hover, .back-auto:hover { text-decoration: underline; }
-/* "Am totul pe hârtie": the three parts from the phone at once. */
-.all-phone { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; column-gap: 12px; min-height: 64px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background-color 0.18s ease; }
-.all-phone:hover { border-color: var(--orange); }
-.all-phone .tile-ic { color: var(--orange); }
-.all-phone-mark { display: none; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--orange); color: #ffffff; }
-.all-phone-mark svg { width: 16px; height: 16px; }
-.all-phone[aria-pressed="true"] { border-color: var(--orange); background: var(--orange-tint); }
-.all-phone[aria-pressed="true"] .all-phone-mark { display: grid; }
-/* What the phone sends, said once above the send. */
-.one-code { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; background: var(--orange-tint); font-size: var(--fs-body); }
-.one-code svg { width: 22px; height: 22px; color: var(--orange); }
-.one-code b { font-weight: 700; }
 .step-note { font-size: var(--fs-small); color: var(--muted); }
 .try-error { color: var(--bad-fg); font-weight: 600; }
 .try-recover, .try-progress { font-size: var(--fs-body); }
