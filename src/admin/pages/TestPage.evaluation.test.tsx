@@ -182,7 +182,7 @@ describe('TestPage evaluation', () => {
     const api = evaluationApi({ evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#grading`, api);
-    expect(await screen.findByText('✓ Corectat complet')).toBeInTheDocument();
+    expect(await screen.findByText('toate corectate')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).not.toBeInTheDocument();
     expect(screen.queryByText('Bifează în tabel cel puțin o lucrare cu fișiere.')).not.toBeInTheDocument();
     const finish = screen.getByRole('button', { name: 'Marchează ca terminat' });
@@ -202,7 +202,7 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#grading`, evaluationApi({}, rows));
     expect(await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
-    expect(screen.queryByText('✓ Corectat complet')).not.toBeInTheDocument();
+    expect(screen.queryByText('toate corectate')).not.toBeInTheDocument();
   });
 
   it('saves the indications for the barem from a text box that is always open', async () => {
@@ -443,12 +443,11 @@ describe('TestPage evaluation', () => {
     ];
     const api = evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     renderAdmin(`${PAGE}#grading`, api);
-    expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 2 elevi au participat' })).toBeInTheDocument();
-    const legend = document.querySelector<HTMLElement>('.papers-progress')!;
-    expect(within(legend).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Eșuate 1']);
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    expect(within(papers).getByText('1 corectată · 1 eșuată', { selector: '.tag' })).toBeInTheDocument();
     // The points to check are named in the stage list, "Urmează" and the bar at the foot, not over the table.
-    expect(within(legend).queryByText('2 puncte de verificat')).not.toBeInTheDocument();
-    expect(within(legend).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
+    expect(within(papers).queryByText('2 puncte de verificat')).not.toBeInTheDocument();
+    expect(within(papers).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
     expect(screen.getByText('Acum · corectarea a pornit pe 7 oct. 2026, 11:00')).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('8,75')).toBeInTheDocument();

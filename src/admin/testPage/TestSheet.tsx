@@ -1,10 +1,12 @@
-import { useId, type ReactNode } from 'react';
+import { Fragment, useId, type ReactNode } from 'react';
 import type { TestInfo, UploadRow } from '../../../shared/api.ts';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatPoints } from '../../../shared/scoring.ts';
 import { formatDateTime, pointsLevel, studentCountLabel } from '../../ui/format.ts';
 import { StatusChip } from '../StatusChip.tsx';
 import { subjectLine } from './SubjectForm.tsx';
+import { PAPER_PART_LABEL, paperCounts } from './paperCounts.ts';
+import { cesBaremActive } from './variant.ts';
 import { t } from '../../i18n/t.ts';
 
 // The barem in a few words. Not its points: the API knows them only after the
@@ -25,7 +27,8 @@ export function uploadingNow(uploads: UploadRow[]): number {
 }
 
 // "Fișa testului" (spec 2026-11-15 §2): the state, two numbers that change with
-// the state of the test, and the plain facts. It shows beside every stage; the
+// the state of the test, once the uploads closed where the papers are
+// ("Lucrările"), and the plain facts. It shows beside every stage; the
 // files are in Pregătire and Tipărire, the students' link in În clasă, the
 // test's actions in "Acțiuni" (`TestMenu.tsx`).
 export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
@@ -81,6 +84,7 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
         </span>
       </div>
       <dl className="sheet-tiles">{tiles}</dl>
+      {(test.status === 'evaluating' || test.status === 'done') && <SheetPapers test={test} uploads={uploads} />}
       <dl className="sheet-facts">
         <dt>{t('Clasa')}</dt>
         <dd>
@@ -98,6 +102,33 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
         )}
       </dl>
     </section>
+  );
+}
+
+// "Lucrările": each part of the papers that has a student (corectate, se
+// corectează, nu au participat, …) and its count, each after a dot of its
+// colour: the blue of the "Acum" box's bar for the graded ones, a paler blue
+// for the ones being graded, a hollow ring for the students who did not take
+// part. The dot only repeats the words.
+function SheetPapers({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
+  const id = useId();
+  const { parts } = paperCounts(test.status, test.studentCount, uploads, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) });
+  if (parts.length === 0) return null;
+  return (
+    <div className="sheet-papers">
+      <h3 id={id}>{t('Lucrările')}</h3>
+      <dl className="sheet-facts" aria-labelledby={id}>
+        {parts.map(({ part, count }) => (
+          <Fragment key={part}>
+            <dt>
+              <span className={`sheet-dot is-${part}`} aria-hidden="true" />
+              {PAPER_PART_LABEL[part]}
+            </dt>
+            <dd>{count}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </div>
   );
 }
 

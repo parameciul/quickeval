@@ -28,7 +28,8 @@ import { ReviewOverview, ReviewWaits, showsOverview } from './ReviewOverview.tsx
 import { RobotLine } from './RobotLine.tsx';
 import { StartRobotButton, waitsForBarem, waitsForPrint, waitsForRobot } from './StartRobotButton.tsx';
 import { TestFiles } from './TestFiles.tsx';
-import { PapersProgress } from './PapersProgress.tsx';
+import { paperCounts, papersTag } from './paperCounts.ts';
+import { cesBaremActive } from './variant.ts';
 import { UploadsTable } from './UploadsTable.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { t } from '../../i18n/t.ts';
@@ -686,12 +687,14 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
   );
 }
 
-// The papers of the class: who sent or took part, the grades, and what waits.
-// Only the table of Corectare has checkboxes, while the test is open.
+// The papers of the class: who sent or took part, the grades, and what waits,
+// under "Elevii" and its label of where the papers are, as the students' table
+// of Rezultate. Only the table of Corectare has checkboxes, while the test is
+// open.
 function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRobot, selectable }: PanelProps & { selectable: boolean }) {
+  const tag = papersTag(paperCounts(test.status, test.studentCount, uploads, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) }));
   return (
-    <div className="stage-section">
-      <PapersProgress test={test} uploads={uploads} />
+    <StageSection title={t('Elevii')} meta={tag && <span className={tag.all ? 'tag tag-ok' : 'tag'}>{tag.text}</span>}>
       <UploadsTable
         code={test.code}
         uploads={uploads}
@@ -704,7 +707,7 @@ function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRob
         onChanged={onChanged}
         onRobot={onRobot}
       />
-    </div>
+    </StageSection>
   );
 }
 

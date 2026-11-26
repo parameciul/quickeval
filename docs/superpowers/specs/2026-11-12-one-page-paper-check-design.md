@@ -146,6 +146,8 @@ Today the try's "Verificare" tab (`Checking`, `src/try/Graded.tsx`) is a list of
 
 ### 5.2 The progress (În clasă, Corectare, Verificare)
 
+Changed 2026-11-26: the bar over the papers table is gone. Its blue and green meant other things than the blue bar of Corectare's "Acum" box. The table is now a section "Elevii", as in Rezultate, with a short label of the parts below ("12 corectate · 11 se corectează", grey; "toate corectate", green, in place of "✓ Corectat complet"); the students who did not take part are not in the label. Once the uploads closed, Fișa testului lists the parts and their counts under "Lucrările". The counts and the parts below still hold.
+
 One bar, of the students of the class (`studentCount`, at least the uploads). The counts come from `uploads` (`UploadRow.status`, `fileCount`) and `test.status`; no API change.
 
 How the server keeps a paper that is not graded matters here. A paper held back from grading (not chosen in a start for some papers, or past the demo limit) goes back to `uploading`, keeps its files and loses `submitted_at` (`HOLD_BACK`, `server/db/lifecycle.ts`). When uploads close, every other `uploading` row with files is sent. So, after uploads closed, an `uploading` row with files is a held-back paper, and one with no files is a student who sent nothing (`PartialEvaluationNotice` in `StagePanel.tsx` reads it the same way). A CES paper waiting for its barem stays `submitted`, and its test stays in evaluation: the server ends a test only when no paper is `submitted` or `grading`. A sent paper is a CES paper when its variant is `ces`, or, before it first went to grading, when its student is marked CES and the test has a CES test file (`paperVariantSql`).
