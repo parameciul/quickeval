@@ -108,6 +108,10 @@ const createdAtSchema = z.string().max(40).optional();
 // none.
 const tokensSchema = z.number().int().min(0).max(MAX_ROBOT_TOKENS).optional();
 
+// The Quick Try robot's backup Claude account wrote the answer: it counts in
+// usage_days.backup_jobs. Any other answer sends none.
+const backupSchema = z.literal(true).optional();
+
 // The exercise list is checked by checkExerciseList (shared/schemas.ts).
 export const exerciseListBody = z.discriminatedUnion('ok', [
   z.object({
@@ -117,6 +121,7 @@ export const exerciseListBody = z.discriminatedUnion('ok', [
     ok: z.literal(true),
     exerciseList: z.unknown(),
     tokens: tokensSchema,
+    backup: backupSchema,
   }),
   z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, createdAt: createdAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
@@ -131,6 +136,7 @@ export const analysisBody = z.discriminatedUnion('ok', [
     model: z.string().max(100).optional(),
     effort: z.string().max(100).optional(),
     tokens: tokensSchema,
+    backup: backupSchema,
   }),
   z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
@@ -257,6 +263,7 @@ export const resultBody = z.discriminatedUnion('ok', [
     model: z.string().max(100),
     effort: z.string().max(100).optional(),
     tokens: tokensSchema,
+    backup: backupSchema,
   }),
   z.object({ runId: runIdSchema, startedAt: startedAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);

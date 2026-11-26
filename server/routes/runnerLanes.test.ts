@@ -197,6 +197,32 @@ describe('robot lanes', () => {
     expect(JSON.parse(kept!.last_run_summary).stop).toBe('done');
   });
 
+  it("counts the backup's jobs of the day", async () => {
+    await robot('POST', '/lease?lane=try', { runId: TRY_RUN });
+    const claimed = await robot('POST', '/claim?lane=try', { runId: TRY_RUN });
+    const result = {
+      items: [{ exerciseId: 'I.1', points: 8, studentAnswer: '3/4', comment: 'Corect.', confidence: 'high', needsReview: false, reviewReason: '' }],
+      unreadable: [],
+      summary: 'Ai lucrat bine.',
+      strengths: [],
+      recommendations: [],
+    };
+    const sent = await robot('POST', `/submissions/${tryPaper}/result`, {
+      runId: TRY_RUN, startedAt: claimed.body.startedAt, ok: true, result, model: 'claude-test', tokens: 10, backup: true,
+    });
+    expect(sent.status).toBe(200);
+    await robot('POST', '/lease', { runId: MAIN_RUN });
+    const mainClaim = await robot('POST', '/claim', { runId: MAIN_RUN });
+    await robot('POST', `/submissions/${mainClaim.body.submissionId}/result`, {
+      runId: MAIN_RUN, startedAt: mainClaim.body.startedAt, ok: true, result, model: 'claude-test', tokens: 10,
+    });
+    const days = await api.db.prepare('SELECT quick_try, papers, backup_jobs FROM usage_days ORDER BY quick_try').all();
+    expect(days.results).toEqual([
+      { quick_try: 0, papers: 1, backup_jobs: 0 },
+      { quick_try: 1, papers: 1, backup_jobs: 1 },
+    ]);
+  });
+
   it('sends the try lane its own number at once', async () => {
     await api.db.prepare("INSERT INTO settings (key, value) VALUES ('max_parallel_agents', '3')").run();
     expect((await robot('POST', '/lease?lane=try', { runId: TRY_RUN })).body.maxParallel).toBe(2);

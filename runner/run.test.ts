@@ -8,7 +8,8 @@ import { runIdSchema, type TasksResult } from '../shared/runner.ts';
 import type { ExerciseList, GeneratedBarem, GradingResult } from '../shared/schemas.ts';
 import { type RobotApi, robotApi } from './api.ts';
 import { PrintSetupError } from './printTask.ts';
-import { main, newRunId, type RunOptions, runRobot } from './run.ts';
+import type { ClaudeSettings } from './claude.ts';
+import { main, main as main_, newRunId, type RunOptions, runRobot } from './run.ts';
 import { addOpenTest, addTry, API_URL, evaluatingTest, fetchFrom, requestBarem, ROBOT_KEY, type RobotWorld } from './test/robotWorld.ts';
 import { answer, problem, scriptedClaude, type ScriptedAnswer } from './test/scriptedClaude.ts';
 
@@ -599,6 +600,84 @@ describe('main', () => {
     const tryRow = await world!.api.db.prepare('SELECT last_run_summary FROM runner_state WHERE id = 2').first<{ last_run_summary: string }>();
     expect(JSON.parse(tryRow!.last_run_summary)).toMatchObject({ exerciseLists: 1, graded: 1, stop: 'done' });
     expect((await runner())!.last_run_summary).toBeNull();
+  });
+
+  describe('the Claude accounts', () => {
+    const base = () => ({ QUICKEVAL_URL: API_URL, QUICKEVAL_RUNNER_KEY: ROBOT_KEY, RUNNER_TEMP: folder('qe-runner-temp-') });
+    // The runners main() makes, by the token each one got.
+    function accounts(byToken: Record<string, ReturnType<typeof scriptedClaude>>) {
+      const made: string[] = [];
+      const claudeFor = (settings: ClaudeSettings) => {
+        made.push(settings.token ?? '');
+        const runner = byToken[settings.token ?? ''];
+        if (!runner) throw new Error(`no runner for ${settings.token}`);
+        return runner.run;
+      };
+      return { made, claudeFor };
+    }
+
+    it('changes to the backup account for Quick Try at the main limit', async () => {
+      await setUp(0);
+      const made = await addTry(world!.api, 'own');
+      const main = scriptedClaude(problem('usage_limit'));
+      const backup = scriptedClaude(answer(LIST), answer(GRADING));
+      const { claudeFor } = accounts({ 'main-token-1234': main, 'backup-token-5678': backup });
+      const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(main.calls).toHaveLength(1);
+      expect(backup.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade']);
+      const paper = await world!.api.db.prepare('SELECT status FROM submissions WHERE id = ?').bind(made.submissionId).first<{ status: string }>();
+      expect(paper!.status).toBe('graded');
+      const day = await world!.api.db.prepare('SELECT backup_jobs FROM usage_days WHERE quick_try = 1').first<{ backup_jobs: number }>();
+      expect(day!.backup_jobs).toBe(2);
+    });
+
+    it('gives each account its own settings folder', async () => {
+      await setUp(0);
+      await addTry(world!.api, 'own');
+      const dirs: string[] = [];
+      const claudeFor = (settings: ClaudeSettings) => {
+        dirs.push(path.basename(settings.configDir));
+        return scriptedClaude(problem('usage_limit'), problem('usage_limit')).run;
+      };
+      const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
+      await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } });
+      expect(dirs).toEqual(['claude-config', 'claude-config-backup']);
+    });
+
+    it('without a backup token stops at the main limit', async () => {
+      await setUp(0);
+      await addTry(world!.api, 'own');
+      const main = scriptedClaude(problem('usage_limit'));
+      const { claudeFor, made } = accounts({ 'main-token-1234': main });
+      const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234' };
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(made).toEqual(['main-token-1234']);
+      const row = await world!.api.db.prepare('SELECT last_run_summary FROM runner_state WHERE id = 2').first<{ last_run_summary: string }>();
+      expect(JSON.parse(row!.last_run_summary).stop).toBe('usage_limit');
+    });
+
+    it('the main robot never uses the backup token', async () => {
+      await setUp(1);
+      const main = scriptedClaude(problem('usage_limit'));
+      const { claudeFor, made } = accounts({ 'main-token-1234': main });
+      const env = { ...base(), CLAUDE_CODE_OAUTH_TOKEN: 'main-token-1234', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(made).toEqual(['main-token-1234']);
+      expect(JSON.parse((await runner())!.last_run_summary!).stop).toBe('usage_limit');
+    });
+
+    it('needs one of the two tokens for the try lane', async () => {
+      await setUp(0);
+      await addTry(world!.api, 'own');
+      const backup = scriptedClaude(answer(LIST), answer(GRADING));
+      const { claudeFor, made } = accounts({ 'backup-token-5678': backup });
+      const env = { ...base(), QE_LANE: 'try', CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-5678' };
+      expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() } })).toBe(0);
+      expect(made).toEqual(['backup-token-5678']);
+      expect(backup.calls).toHaveLength(2);
+      expect(await main_({ ...base(), QE_LANE: 'try' }, { fetch: fetchFrom(world!.api), claudeFor })).toBe(1);
+    });
   });
 
   it('fails when the API cannot be reached', async () => {

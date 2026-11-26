@@ -80,6 +80,12 @@ describe('leaksSecret', () => {
     expect(leaksSecret({ summary: 'robot-key-abcdefgh' }, env)).toBe(true);
   });
 
+  it('refuses an answer that holds the backup token', () => {
+    const backup = { CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'backup-token-987654' };
+    expect(leaksSecret({ summary: 'the token is backup-token-987654' }, backup)).toBe(true);
+    expect(leaksSecret(GRADING, backup)).toBe(false);
+  });
+
   it('finds a Claude token by its prefix, even when the run does not know it', () => {
     expect(leaksSecret({ notes: 'sk-ant-oat01-abc' }, {})).toBe(true);
   });

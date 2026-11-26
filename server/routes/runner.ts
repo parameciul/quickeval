@@ -279,7 +279,7 @@ export function runnerRoutes(): Hono<AppEnv> {
       if (!(await baremKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
       throw await refusedWrite(c, runId.data, testId, await testExists(c.env.DB, testId), baremNotNeeded);
     }
-    await logRobotWork(c.env.DB, { testId, kind: 'barem', variant, ok: true, tokens: tokensHeader(c), at: now });
+    await logRobotWork(c.env.DB, { testId, kind: 'barem', variant, ok: true, tokens: tokensHeader(c), backup: c.req.header('X-Backup') === '1', at: now });
     if (saved.oldKey && saved.oldKey !== key) await deleteFilesQuietly(c.env.FILES, [saved.oldKey]);
     return c.json({ status: 'ready' });
   });
@@ -315,7 +315,7 @@ export function runnerRoutes(): Hono<AppEnv> {
       throw await refusedWrite(c, body.runId, testId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
     }
     if (body.ok) {
-      await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: true, tokens: body.tokens, at: now });
+      await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: true, tokens: body.tokens, backup: body.backup === true, at: now });
     } else if (body.error !== 'usage_limit') {
       await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: false, at: now });
     }
@@ -349,7 +349,7 @@ export function runnerRoutes(): Hono<AppEnv> {
       throw await refusedWrite(c, body.runId, testId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Analiza clasei nu mai este cerută.'));
     }
     if (body.ok) {
-      await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: true, tokens: body.tokens, at: now });
+      await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: true, tokens: body.tokens, backup: body.backup === true, at: now });
     } else if (body.error !== 'usage_limit') {
       await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: false, at: now });
     }
@@ -395,7 +395,15 @@ export function runnerRoutes(): Hono<AppEnv> {
       if (!(await saveGrading(c.env.DB, submissionId, body.runId, startedAt, checked.value, body.result, body.model, now, body.effort ?? null))) {
         throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
       }
-      await logRobotWork(c.env.DB, { testId: current.testId, kind: 'grading', variant: current.variant, ok: true, tokens: body.tokens, at: now });
+      await logRobotWork(c.env.DB, {
+        testId: current.testId,
+        kind: 'grading',
+        variant: current.variant,
+        ok: true,
+        tokens: body.tokens,
+        backup: body.backup === true,
+        at: now,
+      });
       return c.json({ status: 'graded' });
     }
     const status = await failGrading(c.env.DB, submissionId, body.runId, startedAt, body.error, now);

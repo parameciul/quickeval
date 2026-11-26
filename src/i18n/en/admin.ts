@@ -687,6 +687,7 @@ export const ADMIN = {
   "lucrează acum": "working now",
   "nu lucrează acum": "not working now",
   "Robotul pentru profesori": "The teachers' robot",
+  "Cont de rezervă": "Backup account",
   "Robotul pentru încercări rapide": "The Quick Try robot",
   "Încercări rapide deodată": "Quick Tries at once",
   "Câte încercări rapide face robotul lor în același timp. Mai multe deodată răspund mai repede, dar ajung mai repede la limita planului Claude.": "How many Quick Tries their robot works on at the same time. More at once answer sooner, but reach the Claude plan's limit sooner.",

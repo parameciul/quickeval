@@ -92,6 +92,8 @@ export interface RobotApi {
     createdAt?: string,
     variant?: TestVariant,
     subject?: FoundSubject | null,
+    // The backup Claude account wrote it: X-Backup: 1.
+    backup?: boolean,
   ): Promise<void>;
   // "failed": the last attempt failed. "none": the barem waits for another try.
   sendBaremFailed(testId: number, body: BaremFailedPost, variant?: TestVariant): Promise<'none' | 'failed'>;
@@ -190,7 +192,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
     baremJob: async (testId, variant) => (await json<{ job: BaremJob }>('GET', `/tests/${testId}/barem-job${ofVariant(variant)}`)).job,
     baremSource: (testId, variant) => bytes(`/tests/${testId}/barem-job/file${ofVariant(variant)}`),
     baremClassBarem: (testId) => bytes(`/tests/${testId}/barem-job/class-barem`),
-    sendBarem: (testId, runId, filesVersion, docx, tokens, createdAt, variant, subject) =>
+    sendBarem: (testId, runId, filesVersion, docx, tokens, createdAt, variant, subject, backup) =>
       send(
         'PUT',
         `/tests/${testId}/barem${ofVariant(variant)}`,
@@ -201,6 +203,7 @@ export function robotApi(baseUrl: string, key: string, options: RobotApiOptions 
           'X-Tokens': String(tokens),
           ...(createdAt ? { 'X-Created-At': createdAt } : {}),
           ...(subject ? { 'X-Subject': subject.value, 'X-Subject-Name': encodeURIComponent(subject.name) } : {}),
+          ...(backup ? { 'X-Backup': '1' } : {}),
         }),
         nothing,
       ),

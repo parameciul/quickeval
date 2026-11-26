@@ -46,9 +46,9 @@ describe('GET /api/admin/stats', () => {
   it('adds every teacher and Quick Try for each of the last 7 Bucharest days, today first, with zeros for a day with no work', async () => {
     const body = await stats('all', '7d');
     expect(body.rows.map((row: { key: string }) => row.key)).toEqual(['2026-11-18', '2026-11-17', '2026-11-16', '2026-11-15', '2026-11-14', '2026-11-13', '2026-11-12']);
-    expect(body.rows[0]).toEqual({ key: '2026-11-18', papers: 8, barems: 2, exerciseLists: 1, analyses: 0, prints: 0, failed: 1, tokens: 790, tries: 3 });
+    expect(body.rows[0]).toEqual({ key: '2026-11-18', papers: 8, barems: 2, exerciseLists: 1, analyses: 0, prints: 0, failed: 1, tokens: 790, tries: 3, backupJobs: 0 });
     expect(body.rows[1]).toEqual({ key: '2026-11-17', ...EMPTY_USAGE });
-    expect(body.totals).toEqual({ papers: 17, barems: 2, exerciseLists: 1, analyses: 1, prints: 2, failed: 1, tokens: 830, tries: 3 });
+    expect(body.totals).toEqual({ papers: 17, barems: 2, exerciseLists: 1, analyses: 1, prints: 2, failed: 1, tokens: 830, tries: 3, backupJobs: 0 });
     expect(body).toMatchObject({ source: 'all', period: '7d' });
   });
 

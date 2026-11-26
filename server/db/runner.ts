@@ -781,7 +781,7 @@ export async function holdsLease(db: D1Database, runId: string, on: { lane: Robo
 // job to its day, for the usage statistics.
 export async function logRobotWork(
   db: D1Database,
-  work: { testId: number; kind: RobotWorkKind; variant: TestVariant; ok: boolean; tokens?: number | null; at: string },
+  work: { testId: number; kind: RobotWorkKind; variant: TestVariant; ok: boolean; tokens?: number | null; backup?: boolean; at: string },
 ): Promise<void> {
   await db.batch([
     db

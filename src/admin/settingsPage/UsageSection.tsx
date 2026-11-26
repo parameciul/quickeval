@@ -17,8 +17,8 @@ const PERIODS: { value: UsagePeriod; label: string }[] = [
   { value: '12m', label: t('Ultimul an') },
 ];
 
-// The columns, in the order of the work a test goes through; tries only for
-// the sources that have Quick Try.
+// The columns, in the order of the work a test goes through; the tries and the
+// backup account's jobs only for the sources that have Quick Try.
 const COLUMNS: { name: keyof UsageCounts; label: string }[] = [
   { name: 'papers', label: t('Lucrări') },
   { name: 'barems', label: t('Bareme') },
@@ -28,6 +28,7 @@ const COLUMNS: { name: keyof UsageCounts; label: string }[] = [
   { name: 'failed', label: t('Eșuate') },
   { name: 'tokens', label: t('Tokeni') },
   { name: 'tries', label: t('Încercări') },
+  { name: 'backupJobs', label: t('Cont de rezervă') },
 ];
 
 const NUMBER = new Intl.NumberFormat(locale());
@@ -39,7 +40,9 @@ export function usageKeyLabel(key: string): string {
   return key.length === 7 ? MONTH.format(new Date(`${key}-01T00:00:00Z`)) : DAY.format(new Date(`${key}T00:00:00Z`));
 }
 
-const columnsOf = (source: UsageSource) => COLUMNS.filter((column) => column.name !== 'tries' || source !== 'teachers');
+// The tries and the backup account's jobs are Quick Try work only.
+const QUICK_TRY_ONLY: (keyof UsageCounts)[] = ['tries', 'backupJobs'];
+const columnsOf = (source: UsageSource) => COLUMNS.filter((column) => !QUICK_TRY_ONLY.includes(column.name) || source !== 'teachers');
 
 // "Statistici" on Setări: the robot's work per day (or month) of a period, for
 // Quick Try, the teachers, or both. Nothing is read until the administrator

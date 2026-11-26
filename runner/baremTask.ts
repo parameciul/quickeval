@@ -62,7 +62,17 @@ export async function makeBarem(ctx: TaskContext, testId: number, variant: TestV
         return crash('pandoc');
       }
       try {
-        await ctx.api.sendBarem(testId, ctx.runId, job.filesVersion, docx, outcome.tokens, job.createdAt, variant, subjectOf(outcome.output));
+        await ctx.api.sendBarem(
+          testId,
+          ctx.runId,
+          job.filesVersion,
+          docx,
+          outcome.tokens,
+          job.createdAt,
+          variant,
+          subjectOf(outcome.output),
+          outcome.backup === true,
+        );
         return 'saved';
       } catch (err) {
         // A file that the API refuses counts an attempt, so it fails in the

@@ -3,9 +3,10 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { RobotApiOptions } from './api.ts';
 import { laneFromEnv, RobotApiError, robotApiFromEnv } from './api.ts';
-import type { ClaudeRunner } from './claude.ts';
+import type { ClaudeRunner, ClaudeSettings } from './claude.ts';
 import { makeBarem } from './baremTask.ts';
 import { claudeRunner, claudeSettings } from './claude.ts';
+import { failoverRunner } from './failover.ts';
 import { log } from './log.ts';
 import type { PrintTools } from './printTask.ts';
 import { dockerTools, makePrint, PrintSetupError } from './printTask.ts';
@@ -157,8 +158,31 @@ export function newRunId(env: Record<string, string | undefined>): string {
 export interface MainOptions extends RobotApiOptions {
   // Tests replace Claude, the skill folder, and the print container.
   claude?: ClaudeRunner;
+  // Makes the runner of one Claude account; tests see which accounts are made.
+  claudeFor?: (settings: ClaudeSettings) => ClaudeRunner;
   workdir?: WorkFolderOptions;
   printTools?: PrintTools;
+}
+
+// The Claude of a run: the main account, and for the Quick Try robot the
+// backup account after it (failover.ts). Each account has its own settings
+// folder next to the task folders, never inside one, and gets only its own
+// token. With only the backup token, the backup is the one account.
+async function accountsRunner(
+  env: Record<string, string | undefined>,
+  root: string,
+  mainToken: string | undefined,
+  backupToken: string | undefined,
+  make: (settings: ClaudeSettings) => ClaudeRunner,
+): Promise<ClaudeRunner> {
+  const account = async (token: string, folder: string) => {
+    const configDir = path.join(root, folder);
+    await mkdir(configDir, { recursive: true });
+    return make({ ...claudeSettings(env, configDir), token });
+  };
+  const primary = mainToken ? await account(mainToken, 'claude-config') : null;
+  const backup = backupToken ? await account(backupToken, 'claude-config-backup') : null;
+  return primary ? failoverRunner(primary, backup) : backup!;
 }
 
 // The robot step of the GitHub workflow: `node runner/run.ts`.
@@ -168,21 +192,22 @@ export async function main(env: Record<string, string | undefined>, options: Mai
     log('not set up: QUICKEVAL_URL or QUICKEVAL_RUNNER_KEY is missing');
     return 0;
   }
-  if (!options.claude && !env.CLAUDE_CODE_OAUTH_TOKEN?.trim()) {
-    log('not set up: CLAUDE_CODE_OAUTH_TOKEN is missing');
+  const lane = laneFromEnv(env);
+  const mainToken = env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || undefined;
+  // The backup Claude account does Quick Try work only.
+  const backupToken = lane === 'try' ? env.CLAUDE_CODE_OAUTH_TOKEN_BACKUP?.trim() || undefined : undefined;
+  if (!options.claude && !mainToken && !backupToken) {
+    log(lane === 'try' ? 'not set up: CLAUDE_CODE_OAUTH_TOKEN and CLAUDE_CODE_OAUTH_TOKEN_BACKUP are missing' : 'not set up: CLAUDE_CODE_OAUTH_TOKEN is missing');
     return 1;
   }
   const runId = newRunId(env);
   const root = runFolder(env, runId);
-  // Claude's settings folder sits next to the task folders, never inside one.
-  const configDir = path.join(root, 'claude-config');
-  await mkdir(configDir, { recursive: true });
   try {
-    const claude = options.claude ?? claudeRunner(claudeSettings(env, configDir));
+    const claude = options.claude ?? (await accountsRunner(env, root, mainToken, backupToken, options.claudeFor ?? ((settings) => claudeRunner(settings))));
     // robotApiFromEnv found QUICKEVAL_URL; the image is built only when a print job waits.
     const print = { tools: options.printTools ?? dockerTools(), siteUrl: env.QUICKEVAL_URL!.trim() };
     // QE_LANE=try: the Quick Try robot's job (its own lease, GitHub job and setting).
-    const run = laneFromEnv(env) === 'try' ? runTryRobot : runRobot;
+    const run = lane === 'try' ? runTryRobot : runRobot;
     const report = await run({ api, claude, runId, root, workdir: options.workdir, print });
     return report.exitCode;
   } catch (err) {

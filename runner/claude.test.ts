@@ -153,6 +153,12 @@ describe('claudeSettings and claudeEnv', () => {
     });
   });
 
+  it('never passes the backup variable to Claude', () => {
+    const env = claudeEnv(SETTINGS, { CLAUDE_CODE_OAUTH_TOKEN_BACKUP: 'x'.repeat(20), CLAUDE_CODE_OAUTH_TOKEN: 'other', PATH: '/bin' });
+    expect(env).not.toHaveProperty('CLAUDE_CODE_OAUTH_TOKEN_BACKUP');
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe(SETTINGS.token);
+  });
+
   it('passes what Claude needs to start, and keeps the robot key and API keys out', () => {
     const env = claudeEnv(SETTINGS, {
       PATH: '/usr/bin',

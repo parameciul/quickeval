@@ -19,6 +19,8 @@ export interface UsageCounts {
   failed: number;
   tokens: number;
   tries: number;
+  // The jobs that the Quick Try robot's backup Claude account did.
+  backupJobs: number;
 }
 
 // One day ("YYYY-MM-DD") or one month ("YYYY-MM") of a period.
@@ -26,7 +28,7 @@ export interface UsageRow extends UsageCounts {
   key: string;
 }
 
-// The newest day or month first. `tries` is always 0 for the teachers.
+// The newest day or month first. `tries` and `backupJobs` are always 0 for the teachers.
 export interface UsageStats {
   source: UsageSource;
   period: UsagePeriod;
@@ -34,7 +36,7 @@ export interface UsageStats {
   rows: UsageRow[];
 }
 
-export const EMPTY_USAGE: UsageCounts = { papers: 0, barems: 0, exerciseLists: 0, analyses: 0, prints: 0, failed: 0, tokens: 0, tries: 0 };
+export const EMPTY_USAGE: UsageCounts = { papers: 0, barems: 0, exerciseLists: 0, analyses: 0, prints: 0, failed: 0, tokens: 0, tries: 0, backupJobs: 0 };
 
 export function isUsageSource(raw: string | undefined): raw is UsageSource {
   return (USAGE_SOURCES as readonly string[]).includes(raw ?? '');
