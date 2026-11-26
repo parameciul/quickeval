@@ -102,7 +102,7 @@ afterAll(async () => {
   await platform?.dispose();
 });
 
-// The rows the migrations leave behind (runner_state has one), by table.
+// The rows the migrations leave behind (runner_state has one per robot lane), by table.
 let seed: { table: string; rows: Record<string, unknown>[] }[] = [];
 // The tables the migrations made, read once after them: the reset empties
 // these. A table a test makes itself is not emptied; drop it in the test.

@@ -3,13 +3,18 @@ import type { RobotWorkKind } from '../../shared/accounts.ts';
 import type { ExerciseListInfo } from '../../shared/api.ts';
 import { DOCX_TYPE } from '../../shared/files.ts';
 import {
+  LANE_ROW,
   LEASE_STALE_MS,
+  RESTART_AFTER_ERROR_MS,
+  RESTART_AFTER_LIMIT_MS,
+  ROBOT_RESTART_MS,
   type CheckResult,
   type ClaimResult,
   type ClassResults,
   type BaremJob,
   type PrintJob,
   type RobotError,
+  type RobotLane,
   type RobotTest,
   type RunSummary,
   type TasksResult,
@@ -31,6 +36,20 @@ import { baremActiveSql, columns, needsBaremSql, needsPrintSql, paperVariantSql 
 export function staleBefore(now: string): string {
   return new Date(Date.parse(now) - LEASE_STALE_MS).toISOString();
 }
+
+// The lease row of a test's lane (alias `test`): a Quick Try is the try lane's.
+export function laneRowSql(test: string): string {
+  return `CASE WHEN ${test}.quick_try = 1 THEN ${LANE_ROW.try} ELSE ${LANE_ROW.main} END`;
+}
+
+// The tests (alias `test`) whose work a lane takes.
+export function laneWorkSql(lane: RobotLane, test: string): string {
+  return `${test}.quick_try = ${lane === 'try' ? 1 : 0}`;
+}
+
+// A run that holds no live lease of any lane: its uploads in grading are lost.
+const NO_LIVE_RUN = (runId: string) =>
+  `NOT EXISTS (SELECT 1 FROM runner_state r WHERE r.run_id = ${runId} AND r.heartbeat_at >= ?)`;
 
 // Work the robot can take now, as SQL conditions.
 // The class barem is settled: not being generated, and not generated and
@@ -87,14 +106,11 @@ function gradesVersionSql(test: string): string {
      WHERE gs.test_id = ${test}.id AND gs.status = 'graded')`;
 }
 
-// Whether the robot has work in this test, as its regular check counts it.
-// An upload left in grading by a run that died counts too: the check sends
-// it back to the queue.
-export async function testHasRobotWork(db: D1Database, testId: number, now: string): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `SELECT 1 AS found FROM tests t WHERE t.id = ? AND (
-         (${NEEDS_EXERCISE_LIST})
+// Whether the robot has work in test `t`, as its regular check counts it. An
+// upload left in grading by a run that died counts too: the check sends it
+// back to the queue. It binds one value: staleBefore(now).
+function robotWorkSql(): string {
+  return `(${NEEDS_EXERCISE_LIST})
          OR (${NEEDS_ANALYSIS})
          OR (${NEEDS_PRINT})
          OR (${NEEDS_BAREM})
@@ -106,42 +122,109 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
            SELECT 1 FROM submissions s
            WHERE s.test_id = t.id AND s.status = 'grading' AND t.status = 'evaluating'
              AND CASE s.variant WHEN 'ces' THEN t.ces_exercise_list_status ELSE t.exercise_list_status END IN ('ready', 'accepted')
-             AND NOT EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = s.run_id AND r.heartbeat_at >= ?)))`,
-    )
+             AND ${NO_LIVE_RUN('s.run_id')})`;
+}
+
+export async function testHasRobotWork(db: D1Database, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND (${robotWorkSql()})`)
     .bind(testId, staleBefore(now))
     .first<{ found: number }>();
   return row !== null;
 }
 
+// Whose work an open page looks at before it starts a lane again: the try
+// page's own test, or every teacher's class tests. The main look is lane-wide:
+// one robot serves all teachers, and the look takes the lane's 15 minutes, so
+// an idle tab (Setări, "Vezi ca") must not use them for nothing while another
+// teacher's class waits. It runs at most once in ROBOT_RESTART_MS.
+export type RestartScope = { lane: 'try'; testId: number } | { lane: 'main' };
+
+// Whether the page's work waits for its lane's robot.
+export async function laneHasWork(db: D1Database, scope: RestartScope, now: string): Promise<boolean> {
+  const statement =
+    scope.lane === 'try'
+      ? db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND t.quick_try = 1 AND (${robotWorkSql()}) LIMIT 1`).bind(scope.testId, staleBefore(now))
+      : db.prepare(`SELECT 1 AS found FROM tests t WHERE t.quick_try = 0 AND (${robotWorkSql()}) LIMIT 1`).bind(staleBefore(now));
+  return (await statement.first<{ found: number }>()) !== null;
+}
+
+// An open page may start a lane again (restartIfStopped): one statement on the
+// lane's one row, so a page with no start due reads one row. It takes the start
+// (restart_at) when no run of the lane is alive, no run checked in and no page
+// started it in the last ROBOT_RESTART_MS, and the lane's last run, when
+// nothing came after it, did not end at a refused Claude login (that needs a
+// person to renew the token), at an error (three tasks in a row used an
+// attempt, or the API failed: every start would use three more attempts of the
+// waiting papers) less than RESTART_AFTER_ERROR_MS ago (the main lane: never,
+// a person looks first), or at the plan's limit less than
+// RESTART_AFTER_LIMIT_MS ago. The time is taken even when the page then finds
+// no work: the look at the work runs at most once in that time, and every new
+// piece of work starts the robot at once anyway.
+export async function claimRobotRestart(db: D1Database, lane: RobotLane, now: string): Promise<boolean> {
+  const at = Date.parse(now);
+  const before = (ms: number) => new Date(at - ms).toISOString();
+  const result = await db
+    .prepare(
+      `UPDATE runner_state SET restart_at = ?1
+       WHERE id = ?2
+         AND (run_id IS NULL OR heartbeat_at IS NULL OR heartbeat_at < ?3)
+         AND (last_check_at IS NULL OR last_check_at < ?4)
+         AND (restart_at IS NULL OR restart_at < ?4)
+         AND NOT (last_run_finished_at IS NOT NULL AND last_run_finished_at >= COALESCE(last_check_at, '') AND (
+           json_extract(last_run_summary, '$.stop') = 'claude_login'
+           OR (json_extract(last_run_summary, '$.stop') = 'error' AND (?6 IS NULL OR last_run_finished_at >= ?6))
+           OR (json_extract(last_run_summary, '$.stop') = 'usage_limit' AND last_run_finished_at >= ?5)))`,
+    )
+    .bind(
+      now,
+      LANE_ROW[lane],
+      staleBefore(now),
+      before(ROBOT_RESTART_MS),
+      before(RESTART_AFTER_LIMIT_MS[lane]),
+      RESTART_AFTER_ERROR_MS[lane] === null ? null : before(RESTART_AFTER_ERROR_MS[lane]),
+    )
+    // No RETURNING: D1 counts one more row read for it, on every page read.
+    .all();
+  return result.meta.changes > 0;
+}
+
 // The robot's regular check, in one transaction:
-// - an upload left in grading by a run that died or ended goes back to the
-//   queue, so no upload is lost when no new run takes the lease;
-// - scheduled evaluations whose time has come start, and finished tests end;
+// - an upload of the lane's own tests left in grading by a run that died or
+//   ended goes back to the queue, so no upload is lost when no new run takes
+//   the lease (the other lane's check or lease does that for its own);
+// - scheduled evaluations whose time has come start (the main lane only),
+//   and finished tests end;
 // - the time of the check is saved for the robot line;
 // - the counts say whether a run has work.
 export async function runCheck(
   db: D1Database,
   now: string,
   configured: { model?: string; effort?: string } = {},
+  lane: RobotLane = 'main',
 ): Promise<CheckResult> {
+  const mine = laneWorkSql(lane, 't');
   const results = await db.batch<{ exercise_lists: number; pending_grading: number; analyses: number; prints: number; barems: number; ces: number }>([
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', run_id = NULL
-         WHERE status = 'grading' AND NOT EXISTS (
-           SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = submissions.run_id AND r.heartbeat_at >= ?)`,
+         WHERE status = 'grading' AND ${NO_LIVE_RUN('submissions.run_id')}
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND ${mine})`,
       )
       .bind(staleBefore(now)),
-    ...promoteStatements(db, now),
-    db.prepare('UPDATE runner_state SET last_check_at = ? WHERE id = 1').bind(now),
+    // Only the teachers' check starts scheduled tests: a try never schedules,
+    // and a teachers' test the try check started would wait for no robot.
+    // Both end the tests with nothing left to grade.
+    ...(lane === 'main' ? promoteStatements(db, now) : [askForAnalysis(db), finishTests(db, now)]),
+    db.prepare('UPDATE runner_state SET last_check_at = ? WHERE id = ?').bind(now, LANE_ROW[lane]),
     ...configuredStatements(db, now, configured),
     db.prepare(
-      `SELECT (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_EXERCISE_LIST}) AS exercise_lists,
-         (SELECT COUNT(*) FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}) AS pending_grading,
-         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_ANALYSIS}) AS analyses,
-         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_PRINT}) AS prints,
-         (SELECT COUNT(*) FROM tests t WHERE ${NEEDS_BAREM}) AS barems,
-         (SELECT COUNT(*) FROM tests t WHERE (${NEEDS_CES_PRINT}) OR (${NEEDS_CES_BAREM}) OR (${NEEDS_CES_EXERCISE_LIST})) AS ces`,
+      `SELECT (SELECT COUNT(*) FROM tests t WHERE ${mine} AND ${NEEDS_EXERCISE_LIST}) AS exercise_lists,
+         (SELECT COUNT(*) FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${mine} AND ${GRADABLE}) AS pending_grading,
+         (SELECT COUNT(*) FROM tests t WHERE ${mine} AND ${NEEDS_ANALYSIS}) AS analyses,
+         (SELECT COUNT(*) FROM tests t WHERE ${mine} AND ${NEEDS_PRINT}) AS prints,
+         (SELECT COUNT(*) FROM tests t WHERE ${mine} AND ${NEEDS_BAREM}) AS barems,
+         (SELECT COUNT(*) FROM tests t WHERE ${mine} AND ((${NEEDS_CES_PRINT}) OR (${NEEDS_CES_BAREM}) OR (${NEEDS_CES_EXERCISE_LIST}))) AS ces`,
     ),
   ]);
   const counts = results.at(-1)?.results[0];
@@ -176,8 +259,11 @@ function configuredStatements(db: D1Database, now: string, configured: { model?:
   return [put('robot_model', configured.model), put('robot_effort', configured.effort), put('robot_settings_at', now)];
 }
 
-// The run holds the lease.
-const HOLDS_LEASE = 'EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = ?)';
+// The run holds the lease of the given lease row.
+const holdsLeaseSql = (row: string, runId = '?') => `EXISTS (SELECT 1 FROM runner_state r WHERE r.id = ${row} AND r.run_id = ${runId})`;
+// The run holds the lease of the lane of the test that the statement writes
+// (the table `tests`): a run of the other lane may not save it.
+const HOLDS_LEASE = holdsLeaseSql(laneRowSql('tests'));
 
 // What the teacher reads when the robot gave up on a task.
 export const ROBOT_ERROR_TEXT: Record<RobotError, string> = {
@@ -193,19 +279,21 @@ export const MAX_ATTEMPTS = 3;
 // Takes the lease when it is free, stale, or already this run's. A new lease
 // means no other run is alive, so uploads left in grading by another run go
 // back to the queue.
-export async function takeLease(db: D1Database, runId: string, now: string): Promise<boolean> {
+// Each lane has its own lease, and its reset touches only its own tests' uploads.
+export async function takeLease(db: D1Database, runId: string, now: string, lane: RobotLane = 'main'): Promise<boolean> {
   const [taken] = await db.batch<{ run_id: string }>([
     db
       .prepare(
         `UPDATE runner_state SET run_id = ?, lease_acquired_at = ?, heartbeat_at = ?
-         WHERE id = 1 AND (run_id IS NULL OR run_id = ? OR heartbeat_at IS NULL OR heartbeat_at < ?)
+         WHERE id = ? AND (run_id IS NULL OR run_id = ? OR heartbeat_at IS NULL OR heartbeat_at < ?)
          RETURNING run_id`,
       )
-      .bind(runId, now, now, runId, staleBefore(now)),
+      .bind(runId, now, now, LANE_ROW[lane], runId, staleBefore(now)),
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', run_id = NULL
-         WHERE status = 'grading' AND (run_id IS NULL OR run_id <> ?) AND ${HOLDS_LEASE}`,
+         WHERE status = 'grading' AND (run_id IS NULL OR run_id <> ?) AND ${holdsLeaseSql(String(LANE_ROW[lane]))}
+           AND EXISTS (SELECT 1 FROM tests lt WHERE lt.id = submissions.test_id AND ${laneWorkSql(lane, 'lt')})`,
       )
       .bind(runId, runId),
   ]);
@@ -215,7 +303,7 @@ export async function takeLease(db: D1Database, runId: string, now: string): Pro
 // False when another run holds the lease now.
 export async function heartbeat(db: D1Database, runId: string, now: string): Promise<boolean> {
   const row = await db
-    .prepare('UPDATE runner_state SET heartbeat_at = ? WHERE id = 1 AND run_id = ? RETURNING id')
+    .prepare('UPDATE runner_state SET heartbeat_at = ? WHERE run_id = ? RETURNING id')
     .bind(now, runId)
     .first<{ id: number }>();
   return row !== null;
@@ -228,7 +316,7 @@ export async function releaseLease(db: D1Database, runId: string, summary: RunSu
     .prepare(
       `UPDATE runner_state
        SET run_id = NULL, lease_acquired_at = NULL, heartbeat_at = NULL, last_run_finished_at = ?, last_run_summary = ?
-       WHERE id = 1 AND run_id = ?
+       WHERE run_id = ?
        RETURNING id`,
     )
     .bind(now, JSON.stringify(summary), runId)
@@ -236,16 +324,18 @@ export async function releaseLease(db: D1Database, runId: string, summary: RunSu
   return row !== null;
 }
 
-export async function listTasks(db: D1Database): Promise<TasksResult> {
+export async function listTasks(db: D1Database, lane: RobotLane = 'main'): Promise<TasksResult> {
+  if (lane === 'try') return listTryTasks(db);
+  const mine = laneWorkSql(lane, 't');
   const [lists, grading, analyses, prints, barems, cesPrints, cesBarems, cesLists] = await db.batch<{ id?: number; count?: number }>([
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
-    db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${GRADABLE}`),
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_ANALYSIS} ORDER BY t.id`),
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_PRINT} ORDER BY t.created_at, t.id`),
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_BAREM} ORDER BY t.updated_at, t.id`),
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_CES_PRINT} ORDER BY t.created_at, t.id`),
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_CES_BAREM} ORDER BY t.updated_at, t.id`),
-    db.prepare(`SELECT t.id FROM tests t WHERE ${NEEDS_CES_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
+    db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${mine} AND ${GRADABLE}`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_ANALYSIS} ORDER BY t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_PRINT} ORDER BY t.created_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_BAREM} ORDER BY t.updated_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_CES_PRINT} ORDER BY t.created_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_CES_BAREM} ORDER BY t.updated_at, t.id`),
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_CES_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
   ]);
   const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
   return { exerciseLists: ids(lists?.results), pendingGrading: grading?.results[0]?.count ?? 0, analyses: ids(analyses?.results), prints: ids(prints?.results),
@@ -253,6 +343,31 @@ export async function listTasks(db: D1Database): Promise<TasksResult> {
     cesPrints: ids(cesPrints?.results),
     cesBarems: ids(cesBarems?.results),
     cesExerciseLists: ids(cesLists?.results),
+  };
+}
+
+// The Quick Try robot's task list, read on every look of its run while a try
+// is graded (runner/runTry.ts), so its rows must not grow with the teachers'
+// tests. A try has no print, no CES variant and no class analysis. Its barem is
+// asked for only before its grading, so never on a finished test: the status
+// keeps the barem look on the index of tests that are not done.
+async function listTryTasks(db: D1Database): Promise<TasksResult> {
+  const mine = laneWorkSql('try', 't');
+  const [lists, grading, barems] = await db.batch<{ id?: number; count?: number }>([
+    db.prepare(`SELECT t.id FROM tests t WHERE ${mine} AND ${NEEDS_EXERCISE_LIST} ORDER BY t.evaluation_started_at, t.id`),
+    db.prepare(`SELECT COUNT(*) AS count FROM submissions s JOIN tests t ON t.id = s.test_id WHERE ${mine} AND ${GRADABLE}`),
+    db.prepare(`SELECT t.id FROM tests t WHERE t.status IN ('draft', 'open', 'evaluating') AND ${mine} AND ${NEEDS_BAREM} ORDER BY t.updated_at, t.id`),
+  ]);
+  const ids = (rows: { id?: number }[] | undefined) => (rows ?? []).map((row) => row.id!);
+  return {
+    exerciseLists: ids(lists?.results),
+    pendingGrading: grading?.results[0]?.count ?? 0,
+    analyses: [],
+    prints: [],
+    barems: ids(barems?.results),
+    cesPrints: [],
+    cesBarems: [],
+    cesExerciseLists: [],
   };
 }
 
@@ -326,7 +441,7 @@ const waitsForList = (variant: TestVariant, first?: number) => {
   if (first !== undefined) {
     const [id, version, made, run] = [first, first + 1, first + 2, first + 3].map((n) => `?${n}`);
     return `id = ${id} AND ${c('files_version')} = ${version} AND (${made} IS NULL OR created_at = ${made}) AND status = 'evaluating'
-      AND ${c('exercise_list_status')} = 'none' AND EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = ${run})`;
+      AND ${c('exercise_list_status')} = 'none' AND ${holdsLeaseSql(laneRowSql('tests'), run)}`;
   }
   return `id = ? AND ${c('files_version')} = ? AND (? IS NULL OR created_at = ?) AND status = 'evaluating' AND ${c('exercise_list_status')} = 'none' AND ${HOLDS_LEASE}`;
 };
@@ -602,7 +717,7 @@ const waitsForBarem = (variant: TestVariant, first?: number) => {
   if (first !== undefined) {
     const [id, version, made, run] = [first, first + 1, first + 2, first + 3].map((n) => `?${n}`);
     return `tests.id = ${id} AND tests.${columns(variant)('files_version')} = ${version} AND (${made} IS NULL OR tests.created_at = ${made})
-      AND ${needsBaremSql(variant, 'tests')} AND EXISTS (SELECT 1 FROM runner_state r WHERE r.id = 1 AND r.run_id = ${run})`;
+      AND ${needsBaremSql(variant, 'tests')} AND ${holdsLeaseSql(laneRowSql('tests'), run)}`;
   }
   return `tests.id = ? AND tests.${columns(variant)('files_version')} = ? AND (? IS NULL OR tests.created_at = ?) AND ${needsBaremSql(variant, 'tests')} AND ${HOLDS_LEASE}`;
 };
@@ -688,9 +803,18 @@ export async function failBaremJob(
   return row.barem_request === 'failed' ? 'failed' : 'none';
 }
 
-// Whether the run holds the lease now.
-export async function holdsLease(db: D1Database, runId: string): Promise<boolean> {
-  const row = await db.prepare('SELECT 1 AS held FROM runner_state WHERE id = 1 AND run_id = ?').bind(runId).first<{ held: number }>();
+// Whether the run holds a lease now: of any lane, of the named lane, or of the
+// lane of a test (a run of the other lane may not write that test's files).
+export async function holdsLease(db: D1Database, runId: string, on: { lane: RobotLane } | { testId: number } | null = null): Promise<boolean> {
+  const statement =
+    on === null
+      ? db.prepare('SELECT 1 AS held FROM runner_state WHERE run_id = ?').bind(runId)
+      : 'lane' in on
+        ? db.prepare('SELECT 1 AS held FROM runner_state WHERE id = ? AND run_id = ?').bind(LANE_ROW[on.lane], runId)
+        : db
+            .prepare(`SELECT 1 AS held FROM tests t JOIN runner_state r ON r.id = ${laneRowSql('t')} WHERE t.id = ? AND r.run_id = ?`)
+            .bind(on.testId, runId);
+  const row = await statement.first<{ held: number }>();
   return row !== null;
 }
 
@@ -702,7 +826,7 @@ export async function holdsLease(db: D1Database, runId: string): Promise<boolean
 // job to its day, for the usage statistics.
 export async function logRobotWork(
   db: D1Database,
-  work: { testId: number; kind: RobotWorkKind; variant: TestVariant; ok: boolean; tokens?: number | null; at: string },
+  work: { testId: number; kind: RobotWorkKind; variant: TestVariant; ok: boolean; tokens?: number | null; backup?: boolean; at: string },
 ): Promise<void> {
   await db.batch([
     db
@@ -728,14 +852,14 @@ export async function logRobotWork(
 // happens to the student's CES mark. The claim checks GRADABLE again in its
 // SQL, so a mark that changed since the look still sends no CES paper to the
 // robot before its CES barem is active.
-export async function claimSubmission(db: D1Database, runId: string): Promise<ClaimResult | null> {
+export async function claimSubmission(db: D1Database, runId: string, lane: RobotLane = 'main'): Promise<ClaimResult | null> {
   let claimed: { id: number; test_id: number; started_at: string; variant: TestVariant } | null = null;
   for (let tries = 0; tries < 5 && !claimed; tries++) {
     const { results: waiting } = await db
       .prepare(
         `SELECT s.id, s.attempts, st.full_name FROM submissions s
          JOIN tests t ON t.id = s.test_id JOIN students st ON st.id = s.student_id
-         WHERE ${GRADABLE} AND (s.run_id IS NULL OR s.run_id <> ?)`,
+         WHERE ${laneWorkSql(lane, 't')} AND ${GRADABLE} AND (s.run_id IS NULL OR s.run_id <> ?)`,
       )
       .bind(runId)
       .all<{ id: number; attempts: number; full_name: string }>();
@@ -745,14 +869,14 @@ export async function claimSubmission(db: D1Database, runId: string): Promise<Cl
       .prepare(
         `UPDATE submissions SET status = 'grading', run_id = ?,
            variant = (SELECT ${paperVariantSql('submissions', 't')} FROM tests t WHERE t.id = submissions.test_id)
-         WHERE id = ? AND status = 'submitted' AND ${HOLDS_LEASE}
-           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND ${gradableSql('submissions')})
+         WHERE id = ? AND status = 'submitted' AND ${holdsLeaseSql(String(LANE_ROW[lane]))}
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND ${laneWorkSql(lane, 't')} AND ${gradableSql('submissions')})
          RETURNING id, test_id, started_at, variant`,
       )
       .bind(runId, next.id, runId)
       .first<{ id: number; test_id: number; started_at: string; variant: TestVariant }>();
     // No row: another claim took it, or the run lost the lease.
-    if (!claimed && !(await holdsLease(db, runId))) return null;
+    if (!claimed && !(await holdsLease(db, runId, { lane }))) return null;
   }
   if (!claimed) return null;
   const { results } = await db

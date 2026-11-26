@@ -10,6 +10,8 @@ const node = (name: string, include: string[], extra: { exclude?: string[]; env?
 // apply the migrations as wrangler does, or compare the two engines. They run
 // in the "d1" project, which every `npm test` includes.
 const D1_FILES = [
+  'server/db/robotRestartCost.test.ts',
+  'server/db/tryLookCost.test.ts',
   'server/db/testsCost.test.ts',
   'server/db/version.test.ts',
   'server/migrations.test.ts',

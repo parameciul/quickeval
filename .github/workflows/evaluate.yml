@@ -1,9 +1,13 @@
 name: evaluate
 
-# The grading robot (spec §12). Every 10 minutes it asks the site whether
-# there is work; "Pornește evaluarea" starts it at once through
-# repository_dispatch. The repo is public, so everyone can read these logs:
-# the robot writes only ids, counts, durations, and error categories.
+# The grading robots (spec §12): the teachers' robot (job robot, event
+# evaluate-now) and the Quick Try robot (job try-robot, event evaluate-try,
+# docs/superpowers/specs/2026-11-26-quick-try-robot-design.md), each with its
+# own lease and concurrency group, so a Quick Try never waits for a class.
+# Every 10 minutes the teachers' robot asks the site whether there is work;
+# "Pornește evaluarea" starts it at once through repository_dispatch. The repo
+# is public, so everyone can read these logs: the robot writes only ids,
+# counts, durations, and error categories.
 #
 # GitHub runs schedule and repository_dispatch only from the workflow file on
 # main.
@@ -16,8 +20,16 @@ on:
     # this line equal to the check in that job's if.
     - cron: '23 4 * * 1'
   repository_dispatch:
-    types: [evaluate-now]
+    types: [evaluate-now, evaluate-try]
   workflow_dispatch:
+    inputs:
+      lane:
+        description: Which robot runs
+        type: choice
+        options:
+          - main
+          - try
+        default: main
 
 jobs:
   # GitHub switches a schedule off after 60 days without activity in the
@@ -39,6 +51,8 @@ jobs:
         run: gh api --method PUT "repos/$REPO/actions/workflows/evaluate.yml/enable"
 
   robot:
+    # Every run but the Quick Try robot's (evaluate-try, or by hand with lane try).
+    if: github.event.action != 'evaluate-try' && !(github.event_name == 'workflow_dispatch' && inputs.lane == 'try')
     runs-on: ubuntu-latest
     # One robot at a time (spec §12.2). GitHub keeps one waiting run of the
     # group and drops the others: one run takes all the work that waits.
@@ -90,4 +104,54 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           QE_MODEL: ${{ vars.QE_MODEL }}
           QE_EFFORT: ${{ vars.QE_EFFORT }}
+        run: node runner/run.ts
+
+  # The Quick Try robot: the robot job's steps on the try lane, which takes
+  # only Quick Try work (its own lease, "Încercări rapide deodată"). Only its
+  # Grade step gets the backup Claude account, used when the main one is at
+  # its limit (runner/failover.ts). Started by evaluate-try or by hand.
+  try-robot:
+    if: github.event.action == 'evaluate-try' || (github.event_name == 'workflow_dispatch' && inputs.lane == 'try')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: quickeval-robot-try
+      cancel-in-progress: false
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Check for work
+        id: check
+        env:
+          QUICKEVAL_URL: ${{ vars.QUICKEVAL_URL }}
+          QUICKEVAL_RUNNER_KEY: ${{ secrets.QUICKEVAL_RUNNER_KEY }}
+          QE_MODEL: ${{ vars.QE_MODEL }}
+          QE_EFFORT: ${{ vars.QE_EFFORT }}
+          QE_LANE: try
+        run: node runner/check.ts
+
+      - name: Install
+        if: steps.check.outputs.has_work == 'true'
+        run: |
+          npm ci --omit=dev
+          npm install --global @anthropic-ai/claude-code@2.1.294
+          bash .github/scripts/install-pandoc.sh
+
+      - name: Grade
+        if: steps.check.outputs.has_work == 'true'
+        env:
+          QUICKEVAL_URL: ${{ vars.QUICKEVAL_URL }}
+          QUICKEVAL_RUNNER_KEY: ${{ secrets.QUICKEVAL_RUNNER_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN_BACKUP: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN_BACKUP }}
+          QE_MODEL: ${{ vars.QE_MODEL }}
+          QE_EFFORT: ${{ vars.QE_EFFORT }}
+          QE_LANE: try
         run: node runner/run.ts

@@ -67,6 +67,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'Scrie numele tău.': 'Type your name.',
   'Alege dacă se arată coloana Model.': 'Choose whether the Model column shows.',
   'Alege între 1 și {} lucrări corectate deodată.': 'Choose between 1 and {} papers graded at once.',
+  'Alege între 1 și {} încercări rapide deodată.': 'Choose between 1 and {} Quick Tries at once.',
 
   // The emails.
   'MQGrader: confirmă adresa de email': 'MQGrader: confirm your email address',

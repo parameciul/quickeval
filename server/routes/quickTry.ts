@@ -16,7 +16,7 @@ import { addSubmissionFile, deleteSessionFile, fileSlots, findSessionFile } from
 import { createQuickTry, dailyLimitReached, deleteTryRows, findQuickTry, guestTeacher, listPaperFiles, tryFileKeys } from '../db/quickTry.ts';
 import { findResultBySubmission } from '../db/results.ts';
 import { confirmBarem, requireTest } from '../db/tests.ts';
-import { robotStarter } from '../dispatch.ts';
+import { restartIfStopped, robotStarter } from '../dispatch.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError } from '../errors.ts';
 import { clientIpKey, inBackground, nowIso, parseId, readJson, sameOriginWrites } from '../http.ts';
@@ -84,7 +84,9 @@ const allowList: MiddlewareHandler<AppEnv> = async (c, next) => {
 export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   const verify = options.verifyTurnstile ?? ((env, token, ip) => verifyTurnstile(env, token, ip));
-  const startRobot = robotStarter(options);
+  // Every robot path of a try starts the Quick Try robot (the try lane).
+  const tryOptions: AppOptions = { ...options, robotLane: 'try' };
+  const startRobot = robotStarter(tryOptions);
   routes.use('*', sameOriginWrites);
   // No promoteDue here: a try never schedules (evaluate and schedule are not
   // on the allow-list). A route that schedules must add it first.
@@ -239,8 +241,16 @@ export function quickTryRoutes(options: AppOptions = {}): Hono<AppEnv> {
 
   routes.use('/:token/tests/*', allowList);
   routes.use('/:token/submissions/*', allowList);
-  routes.route('/:token/tests', testRoutes(options));
-  routes.route('/:token/submissions', submissionRoutes(options));
+  // The try page reads its test on a timer while the try waits: that read is
+  // also the clock that starts the Quick Try robot again after a stop, after
+  // the answer, which does not wait for it.
+  routes.get('/:token/tests/:code', async (c, next) => {
+    await next();
+    if (c.res.status !== 200) return;
+    inBackground(c, restartIfStopped(c.env, tryOptions, { lane: 'try', testId: c.var.quickTry.testId }, nowIso()));
+  });
+  routes.route('/:token/tests', testRoutes(tryOptions));
+  routes.route('/:token/submissions', submissionRoutes(tryOptions));
 
   return routes;
 }

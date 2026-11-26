@@ -84,6 +84,40 @@ export async function addOpenTest(api: TestApi, type: 'pdf' | 'docx', className 
   return { code, testId, uploadToken };
 }
 
+export interface RobotTry {
+  testId: number;
+  submissionId: number;
+}
+
+const pdfBytes = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(`%PDF-1.7 ${text}`);
+
+// A Quick Try made through its own link by the test's administrator (who
+// skips Turnstile and the limits), with its test file in R2 and one page of
+// its student. `barem` "requested": the try asks the robot for its barem and
+// waits for it; "own": it has its own barem and its paper went to grading.
+export async function addTry(api: TestApi, barem: 'requested' | 'own'): Promise<RobotTry> {
+  const made = await api.request('POST', '/api/try', {});
+  if (made.status !== 201) throw new Error(`addTry: ${JSON.stringify(made.body)}`);
+  const { token, code } = made.body as { token: string; code: string };
+  const put = (path: string, bytes: Uint8Array<ArrayBuffer>, type: string, name: string) =>
+    api.fetch(`/api/try/${token}${path}`, { method: 'PUT', body: bytes, headers: { 'Content-Type': type, 'X-File-Name': name } });
+  await put(`/tests/${code}/files/test`, pdfBytes('test'), PDF_TYPE, 'test.pdf');
+  await put('/paper', new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2]), 'image/jpeg', 'pagina1.jpg');
+  if (barem === 'own') {
+    await put(`/tests/${code}/files/marking-scheme`, pdfBytes('barem'), PDF_TYPE, 'barem.pdf');
+    const started = await api.request('POST', `/api/try/${token}/start`, {});
+    if (started.status !== 200) throw new Error(`addTry: ${JSON.stringify(started.body)}`);
+  } else {
+    const asked = await api.request('POST', `/api/try/${token}/tests/${code}/marking-scheme/generate`);
+    if (asked.status !== 200) throw new Error(`addTry: ${JSON.stringify(asked.body)}`);
+  }
+  const row = await api.db
+    .prepare('SELECT t.id AS test_id, s.id AS submission_id FROM tests t JOIN submissions s ON s.test_id = t.id WHERE t.code = ?')
+    .bind(code)
+    .first<{ test_id: number; submission_id: number }>();
+  return { testId: row!.test_id, submissionId: row!.submission_id };
+}
+
 // The test waits for a generated barem, with the teacher's comments for it.
 export async function requestBarem(api: TestApi, testId: number, notes = ''): Promise<void> {
   await api.db.prepare("UPDATE tests SET barem_request = 'requested', barem_notes = ? WHERE id = ?").bind(notes, testId).run();

@@ -24,7 +24,7 @@ describe('dispatchRobot', () => {
 
   it('sends the evaluate-now event to the repository', async () => {
     const fetchImpl = vi.fn(async () => new Response(null, { status: 204 }));
-    expect(await dispatchRobot(ENV, fetchImpl)).toBe(true);
+    expect(await dispatchRobot(ENV, 'main', fetchImpl)).toBe(true);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://api.github.com/repos/parameciul/quickeval/dispatches');
@@ -36,25 +36,34 @@ describe('dispatchRobot', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
+  it('sends evaluate-try for the try lane', async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await dispatchRobot(ENV, 'try', fetchImpl)).toBe(true);
+    const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.body).toBe('{"event_type":"evaluate-try"}');
+    expect(await dispatchRobot(ENV, 'main', fetchImpl)).toBe(true);
+    expect((fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[1].body).toBe('{"event_type":"evaluate-now"}');
+  });
+
   it('does nothing without the settings or with a wrong repository name', async () => {
     const fetchImpl = vi.fn(async () => new Response(null, { status: 204 }));
-    expect(await dispatchRobot({} as Env, fetchImpl)).toBe(false);
-    expect(await dispatchRobot({ ...ENV, GITHUB_DISPATCH_TOKEN: ' ' }, fetchImpl)).toBe(false);
-    expect(await dispatchRobot({ ...ENV, GITHUB_REPO: 'https://github.com/x/y' }, fetchImpl)).toBe(false);
+    expect(await dispatchRobot({} as Env, 'main', fetchImpl)).toBe(false);
+    expect(await dispatchRobot({ ...ENV, GITHUB_DISPATCH_TOKEN: ' ' }, 'main', fetchImpl)).toBe(false);
+    expect(await dispatchRobot({ ...ENV, GITHUB_REPO: 'https://github.com/x/y' }, 'main', fetchImpl)).toBe(false);
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('answers false and logs the status when GitHub refuses', async () => {
     const fetchImpl = async () => new Response('{"message":"Resource not accessible by personal access token"}', { status: 403 });
-    expect(await dispatchRobot(ENV, fetchImpl)).toBe(false);
+    expect(await dispatchRobot(ENV, 'main', fetchImpl)).toBe(false);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith('GitHub refused the robot dispatch: HTTP 403');
     expectSafeLog();
   });
 
   it('logs any answer other than 204, also a success code GitHub does not use here', async () => {
-    expect(await dispatchRobot(ENV, async () => new Response('{}', { status: 200 }))).toBe(false);
+    expect(await dispatchRobot(ENV, 'main', async () => new Response('{}', { status: 200 }))).toBe(false);
     expect(warn).toHaveBeenCalledWith('GitHub refused the robot dispatch: HTTP 200');
   });
 
@@ -62,7 +71,7 @@ describe('dispatchRobot', () => {
     const fetchImpl = async () => {
       throw new TypeError('fetch failed for https://api.github.com/repos/parameciul/quickeval/dispatches');
     };
-    expect(await dispatchRobot(ENV, fetchImpl)).toBe(false);
+    expect(await dispatchRobot(ENV, 'main', fetchImpl)).toBe(false);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith('GitHub robot dispatch failed: TypeError');
     expectSafeLog();
@@ -72,7 +81,7 @@ describe('dispatchRobot', () => {
     const fetchImpl = async () => {
       throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
     };
-    expect(await dispatchRobot(ENV, fetchImpl)).toBe(false);
+    expect(await dispatchRobot(ENV, 'main', fetchImpl)).toBe(false);
     expect(warn).toHaveBeenCalledWith('GitHub robot dispatch failed: TimeoutError');
   });
 
@@ -80,7 +89,7 @@ describe('dispatchRobot', () => {
     const fetchImpl = async () => {
       throw 'secret-token';
     };
-    expect(await dispatchRobot(ENV, fetchImpl)).toBe(false);
+    expect(await dispatchRobot(ENV, 'main', fetchImpl)).toBe(false);
     expect(warn).toHaveBeenCalledWith('GitHub robot dispatch failed: unknown error');
     expectSafeLog();
   });

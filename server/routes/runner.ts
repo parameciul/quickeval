@@ -10,7 +10,9 @@ import {
   exerciseListBody,
   type LeaseResult,
   MAX_ROBOT_BODY_BYTES,
+  parseLane,
   printFailedBody,
+  type RobotLane,
   releaseBody,
   resultBody,
   runBody,
@@ -92,10 +94,19 @@ function tokensHeader(c: Context<AppEnv>): number | null {
 
 // Why a robot write changed nothing: the test is gone (404, the robot drops
 // the result), another run holds the lease, or the work is no longer needed.
-async function refusedWrite(c: Context<AppEnv>, runId: string, exists: boolean, notNeeded: () => ApiError): Promise<ApiError> {
+async function refusedWrite(c: Context<AppEnv>, runId: string, testId: number, exists: boolean, notNeeded: () => ApiError): Promise<ApiError> {
   if (!exists) return notFound();
-  if (!(await holdsLease(c.env.DB, runId))) return leaseLost();
+  if (!(await holdsLease(c.env.DB, runId, { testId }))) return leaseLost();
   return notNeeded();
+}
+
+// The lane a request names (?lane=try for the Quick Try robot); 404 for an
+// unknown one. Only /check, /lease, /tasks and /claim take it: the other
+// routes name a test or a run, and their writes check the test's own lane.
+function laneOf(c: Context<AppEnv>): RobotLane {
+  const lane = parseLane(c.req.query('lane'));
+  if (lane === null) throw notFound();
+  return lane;
 }
 
 // /api/runner: the evaluation robot (spec §11.3). Every route needs the robot
@@ -108,14 +119,15 @@ export function runnerRoutes(): Hono<AppEnv> {
   // An older robot sends no body; a newer one names its model and effort.
   routes.post('/check', async (c) => {
     const configured = (c.req.header('Content-Type') ?? '').toLowerCase().startsWith('application/json') ? await readJson(c, checkBody) : {};
-    return c.json(await runCheck(c.env.DB, nowIso(), configured));
+    return c.json(await runCheck(c.env.DB, nowIso(), configured, laneOf(c)));
   });
 
-  // Only one run works at a time (spec §12.2).
+  // Only one run of each lane works at a time (spec §12.2).
   routes.post('/lease', async (c) => {
+    const lane = laneOf(c);
     const { runId } = await readJson(c, runBody);
-    const granted = await takeLease(c.env.DB, runId, nowIso());
-    const answer: LeaseResult = { granted, maxParallel: await getMaxParallel(c.env.DB) };
+    const granted = await takeLease(c.env.DB, runId, nowIso(), lane);
+    const answer: LeaseResult = { granted, maxParallel: await getMaxParallel(c.env.DB, lane) };
     return c.json(answer);
   });
 
@@ -131,7 +143,7 @@ export function runnerRoutes(): Hono<AppEnv> {
     return c.json({ released: true });
   });
 
-  routes.get('/tasks', async (c) => c.json(await listTasks(c.env.DB)));
+  routes.get('/tasks', async (c) => c.json(await listTasks(c.env.DB, laneOf(c))));
 
   routes.get('/tests/:id', async (c) => {
     const found = await findRobotTest(c.env.DB, parseId(c.req.param('id')), parseVariant(c.req.query('variant')));
@@ -180,21 +192,21 @@ export function runnerRoutes(): Hono<AppEnv> {
     const version = Number(versionText);
     if (!/^\d+$/.test(versionText) || !Number.isSafeInteger(version)) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
     const found = await findPrintJob(c.env.DB, testId, variant);
-    if (!found) throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
+    if (!found) throw await refusedWrite(c, runId.data, testId, await testExists(c.env.DB, testId), printNotNeeded);
     // The key is shared by every run that made this version: a run without the
     // lease, or one that read an older file, must not touch the object.
     if (found.job.filesVersion !== version) throw printNotNeeded();
     // An older robot names no creation time: the test as it is now.
     const createdAt = c.req.header('X-Created-At') ?? null;
     if (createdAt !== null && createdAt !== found.job.createdAt) throw printNotNeeded();
-    if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
+    if (!(await holdsLease(c.env.DB, runId.data, { testId }))) throw leaseLost();
     const file = await readUpload(c, [PDF_TYPE], 'Fișierul trebuie să fie un PDF.');
     const key = printFileKey(found.teacherId, found.schoolYear, found.code, found.testFileName, version, variant);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: PDF_TYPE } });
     const now = nowIso();
     if (!(await savePrint(c.env.DB, testId, runId.data, version, createdAt, key, now, variant))) {
       if (!(await printKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
-      throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), printNotNeeded);
+      throw await refusedWrite(c, runId.data, testId, await testExists(c.env.DB, testId), printNotNeeded);
     }
     await logRobotWork(c.env.DB, { testId, kind: 'print', variant, ok: true, at: now });
     return c.json({ status: 'ready' });
@@ -207,7 +219,7 @@ export function runnerRoutes(): Hono<AppEnv> {
     const variant = parseVariant(c.req.query('variant'));
     const now = nowIso();
     const status = await failPrint(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now, variant);
-    if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), printNotNeeded);
+    if (!status) throw await refusedWrite(c, body.runId, testId, await testExists(c.env.DB, testId), printNotNeeded);
     // The plan's limit is not an attempt: it changes nothing, so it counts nowhere.
     if (body.error !== 'usage_limit') await logRobotWork(c.env.DB, { testId, kind: 'print', variant, ok: false, at: now });
     return c.json({ status });
@@ -250,13 +262,13 @@ export function runnerRoutes(): Hono<AppEnv> {
     const version = Number(versionText);
     if (!/^\d+$/.test(versionText) || !Number.isSafeInteger(version)) throw new ApiError(400, 'invalid', 'Versiunea fișierelor nu este validă.');
     const found = await findBaremJob(c.env.DB, testId, variant);
-    if (!found) throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
+    if (!found) throw await refusedWrite(c, runId.data, testId, await testExists(c.env.DB, testId), baremNotNeeded);
     // The key is shared by every run that made this version: a run without the
     // lease, or one that read an older file, must not touch the object.
     if (found.job.filesVersion !== version) throw baremNotNeeded();
     const createdAt = c.req.header('X-Created-At') ?? null;
     if (createdAt !== null && createdAt !== found.job.createdAt) throw baremNotNeeded();
-    if (!(await holdsLease(c.env.DB, runId.data))) throw leaseLost();
+    if (!(await holdsLease(c.env.DB, runId.data, { testId }))) throw leaseLost();
     const file = await readUpload(c, [DOCX_TYPE], 'Fișierul trebuie să fie un document Word.');
     const key = generatedBaremKey(found.teacherId, found.schoolYear, found.code, version, variant);
     await c.env.FILES.put(key, file.bytes, { httpMetadata: { contentType: DOCX_TYPE } });
@@ -265,9 +277,9 @@ export function runnerRoutes(): Hono<AppEnv> {
     const saved = await saveGeneratedBarem(c.env.DB, testId, runId.data, version, createdAt, key, name, now, variant, subjectHeaders(c));
     if (!saved) {
       if (!(await baremKeyIs(c.env.DB, testId, key, variant))) await deleteFilesQuietly(c.env.FILES, [key]);
-      throw await refusedWrite(c, runId.data, await testExists(c.env.DB, testId), baremNotNeeded);
+      throw await refusedWrite(c, runId.data, testId, await testExists(c.env.DB, testId), baremNotNeeded);
     }
-    await logRobotWork(c.env.DB, { testId, kind: 'barem', variant, ok: true, tokens: tokensHeader(c), at: now });
+    await logRobotWork(c.env.DB, { testId, kind: 'barem', variant, ok: true, tokens: tokensHeader(c), backup: c.req.header('X-Backup') === '1', at: now });
     if (saved.oldKey && saved.oldKey !== key) await deleteFilesQuietly(c.env.FILES, [saved.oldKey]);
     return c.json({ status: 'ready' });
   });
@@ -279,7 +291,7 @@ export function runnerRoutes(): Hono<AppEnv> {
     const variant = parseVariant(c.req.query('variant'));
     const now = nowIso();
     const status = await failBaremJob(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now, variant);
-    if (!status) throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), baremNotNeeded);
+    if (!status) throw await refusedWrite(c, body.runId, testId, await testExists(c.env.DB, testId), baremNotNeeded);
     if (body.error !== 'usage_limit') await logRobotWork(c.env.DB, { testId, kind: 'barem', variant, ok: false, at: now });
     return c.json({ status });
   });
@@ -300,10 +312,10 @@ export function runnerRoutes(): Hono<AppEnv> {
       saved = await failExerciseList(c.env.DB, testId, body.runId, body.filesVersion, body.createdAt ?? null, body.error, now, variant);
     }
     if (!saved) {
-      throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
+      throw await refusedWrite(c, body.runId, testId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Lista de exerciții nu mai este cerută.'));
     }
     if (body.ok) {
-      await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: true, tokens: body.tokens, at: now });
+      await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: true, tokens: body.tokens, backup: body.backup === true, at: now });
     } else if (body.error !== 'usage_limit') {
       await logRobotWork(c.env.DB, { testId, kind: 'exercise_list', variant, ok: false, at: now });
     }
@@ -334,10 +346,10 @@ export function runnerRoutes(): Hono<AppEnv> {
       status = await failAnalysis(c.env.DB, testId, body.runId, body.error, now);
     }
     if (!status) {
-      throw await refusedWrite(c, body.runId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Analiza clasei nu mai este cerută.'));
+      throw await refusedWrite(c, body.runId, testId, await testExists(c.env.DB, testId), () => new ApiError(409, 'not_needed', 'Analiza clasei nu mai este cerută.'));
     }
     if (body.ok) {
-      await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: true, tokens: body.tokens, at: now });
+      await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: true, tokens: body.tokens, backup: body.backup === true, at: now });
     } else if (body.error !== 'usage_limit') {
       await logRobotWork(c.env.DB, { testId, kind: 'analysis', variant: 'class', ok: false, at: now });
     }
@@ -346,10 +358,11 @@ export function runnerRoutes(): Hono<AppEnv> {
 
   // The oldest upload that can be graded, now this run's; 204 when none.
   routes.post('/claim', async (c) => {
+    const lane = laneOf(c);
     const { runId } = await readJson(c, runBody);
-    const claimed = await claimSubmission(c.env.DB, runId);
+    const claimed = await claimSubmission(c.env.DB, runId, lane);
     if (claimed) return c.json(claimed);
-    if (!(await holdsLease(c.env.DB, runId))) throw leaseLost();
+    if (!(await holdsLease(c.env.DB, runId, { lane }))) throw leaseLost();
     return c.body(null, 204);
   });
 
@@ -382,7 +395,15 @@ export function runnerRoutes(): Hono<AppEnv> {
       if (!(await saveGrading(c.env.DB, submissionId, body.runId, startedAt, checked.value, body.result, body.model, now, body.effort ?? null))) {
         throw (await findGrading(c.env.DB, submissionId)) ? takenOver() : notFound();
       }
-      await logRobotWork(c.env.DB, { testId: current.testId, kind: 'grading', variant: current.variant, ok: true, tokens: body.tokens, at: now });
+      await logRobotWork(c.env.DB, {
+        testId: current.testId,
+        kind: 'grading',
+        variant: current.variant,
+        ok: true,
+        tokens: body.tokens,
+        backup: body.backup === true,
+        at: now,
+      });
       return c.json({ status: 'graded' });
     }
     const status = await failGrading(c.env.DB, submissionId, body.runId, startedAt, body.error, now);

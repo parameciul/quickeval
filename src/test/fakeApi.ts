@@ -104,9 +104,11 @@ export const FAKE_TEMPORARY_PASSWORD = 'abcdefghjkmn';
 export function fakeSettings(overrides: Partial<Settings> = {}): Settings {
   return {
     maxParallelAgents: 1,
+    maxParallelTries: 2,
     hasRobotKey: false,
     robotKeyAt: null,
     robot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
+    tryRobot: { running: false, lastCheckAt: null, lastRunFinishedAt: null, lastRunSummary: null },
     lastModels: { gradingModel: null, gradingEffort: null, analysisModel: null, analysisEffort: null },
     showModelColumn: false,
     configuredModel: null,
@@ -1115,6 +1117,10 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
     })),
     updateSettings: vi.fn(async (maxParallelAgents: number) => {
       settings.maxParallelAgents = maxParallelAgents;
+      return structuredClone(settings);
+    }),
+    setMaxParallelTries: vi.fn(async (maxParallelTries: number) => {
+      settings.maxParallelTries = maxParallelTries;
       return structuredClone(settings);
     }),
     setShowModelColumn: vi.fn(async (show: boolean) => {

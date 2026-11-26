@@ -8,9 +8,9 @@ import { renderAdmin } from '../../test/renderAdmin.tsx';
 import { usageKeyLabel } from './UsageSection.tsx';
 
 const usage = {
-  totals: { ...EMPTY_USAGE, papers: 12, barems: 2, tokens: 1234567, tries: 3, failed: 1 },
+  totals: { ...EMPTY_USAGE, papers: 12, barems: 2, tokens: 1234567, tries: 3, failed: 1, backupJobs: 2 },
   rows: [
-    { key: '2026-11-18', ...EMPTY_USAGE, papers: 8, barems: 2, tokens: 1000000, tries: 3 },
+    { key: '2026-11-18', ...EMPTY_USAGE, papers: 8, barems: 2, tokens: 1000000, tries: 3, backupJobs: 2 },
     { key: '2026-11-17', ...EMPTY_USAGE },
     { key: '2026-11-16', ...EMPTY_USAGE, papers: 4, failed: 1, tokens: 234567 },
   ],
@@ -42,13 +42,14 @@ describe('Statistici on Setări', () => {
     expect(totals).toHaveTextContent('Lucrări12');
     expect(totals).toHaveTextContent('Tokeni1.234.567');
     expect(totals).toHaveTextContent('Încercări3');
+    expect(totals).toHaveTextContent('Cont de rezervă2');
     const table = screen.getByRole('table', { name: 'Ultimele 7 zile · Toate' });
     expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
-      'Ziua', 'Lucrări', 'Bareme', 'Liste', 'Analize', 'Tipar', 'Eșuate', 'Tokeni', 'Încercări',
+      'Ziua', 'Lucrări', 'Bareme', 'Liste', 'Analize', 'Tipar', 'Eșuate', 'Tokeni', 'Încercări', 'Cont de rezervă',
     ]);
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['18 nov.', '17 nov.', '16 nov.']);
-    expect(within(rows[0]!).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['8', '2', '—', '—', '—', '—', '1.000.000', '3']);
+    expect(within(rows[0]!).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['8', '2', '—', '—', '—', '—', '1.000.000', '3', '2']);
     expect(within(rows[1]!).getAllByRole('cell').every((cell) => cell.textContent === '—')).toBe(true);
   });
 
@@ -71,7 +72,9 @@ describe('Statistici on Setări', () => {
     const headers = within(table).getAllByRole('columnheader').map((cell) => cell.textContent);
     expect(headers[0]).toBe('Luna');
     expect(headers).not.toContain('Încercări');
+    expect(headers).not.toContain('Cont de rezervă');
     expect(screen.getByLabelText('Totaluri')).not.toHaveTextContent('Încercări');
+    expect(screen.getByLabelText('Totaluri')).not.toHaveTextContent('Cont de rezervă');
   });
 
   it('asks again on each Generează, also for the same choice', async () => {

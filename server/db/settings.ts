@@ -1,20 +1,28 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { Settings, TestDetail } from '../../shared/api.ts';
-import { LEASE_STALE_MS, MAX_PARALLEL_AGENTS, runSummarySchema, type RunSummary } from '../../shared/runner.ts';
+import { LANE_ROW, LEASE_STALE_MS, MAX_PARALLEL_AGENTS, MAX_PARALLEL_TRIES, runSummarySchema, type RobotLane, type RunSummary } from '../../shared/runner.ts';
 
 // System-wide settings (spec §7.1). v1 has one teacher, so any teacher may
 // change them.
 
 const PARALLEL = 'max_parallel_agents';
+// "Încercări rapide deodată": how many Quick Tries the try robot works on at once.
+const PARALLEL_TRIES = 'max_parallel_tries';
 const ROBOT_KEY_HASH = 'runner_key_hash';
 const ROBOT_KEY_AT = 'runner_key_at';
 const SHOW_MODEL = 'show_model_column';
 
 export const DEFAULT_PARALLEL_AGENTS = 1;
+export const DEFAULT_PARALLEL_TRIES = 2;
 
 function parseParallel(raw: string | null): number {
   const value = Number(raw);
   return Number.isInteger(value) && value >= 1 && value <= MAX_PARALLEL_AGENTS ? value : DEFAULT_PARALLEL_AGENTS;
+}
+
+function parseTries(raw: string | null): number {
+  const value = Number(raw);
+  return raw !== null && Number.isInteger(value) && value >= 1 && value <= MAX_PARALLEL_TRIES ? value : DEFAULT_PARALLEL_TRIES;
 }
 
 function parseSummary(raw: string | null): RunSummary | null {
@@ -38,6 +46,9 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
   const row = await db
     .prepare(
       `SELECT (SELECT value FROM settings WHERE key = ?) AS parallel,
+         (SELECT value FROM settings WHERE key = '${PARALLEL_TRIES}') AS tries,
+         q.run_id AS try_run_id, q.heartbeat_at AS try_heartbeat_at, q.last_check_at AS try_last_check_at,
+         q.last_run_finished_at AS try_last_run_finished_at, q.last_run_summary AS try_last_run_summary,
          EXISTS (SELECT 1 FROM settings WHERE key = ?) AS has_key,
          (SELECT value FROM settings WHERE key = ?) AS key_at,
          r.run_id, r.heartbeat_at, r.last_check_at, r.last_run_finished_at, r.last_run_summary,
@@ -58,11 +69,17 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
          (SELECT value FROM settings WHERE key = 'robot_model') AS configured_model,
          (SELECT value FROM settings WHERE key = 'robot_effort') AS configured_effort,
          (SELECT value FROM settings WHERE key = 'robot_settings_at') AS configured_at
-       FROM runner_state r WHERE r.id = 1`,
+       FROM runner_state r LEFT JOIN runner_state q ON q.id = ${LANE_ROW.try} WHERE r.id = ${LANE_ROW.main}`,
     )
     .bind(PARALLEL, ROBOT_KEY_HASH, ROBOT_KEY_AT, teacherId, SHOW_MODEL, teacherId, teacherId, teacherId, teacherId)
     .first<{
       parallel: string | null;
+      tries: string | null;
+      try_run_id: string | null;
+      try_heartbeat_at: string | null;
+      try_last_check_at: string | null;
+      try_last_run_finished_at: string | null;
+      try_last_run_summary: string | null;
       has_key: number;
       key_at: string | null;
       run_id: string | null;
@@ -84,17 +101,29 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
       configured_effort: string | null;
       configured_at: string | null;
     }>();
-  const heartbeat = row?.heartbeat_at ? Date.parse(row.heartbeat_at) : Number.NaN;
+  // A run is running while it holds the lease and its heartbeat is fresh.
+  const status = (runId: string | null, heartbeatAt: string | null, lastCheckAt: string | null, finishedAt: string | null, summary: string | null) => {
+    const heartbeat = heartbeatAt ? Date.parse(heartbeatAt) : Number.NaN;
+    return {
+      running: Boolean(runId) && Date.parse(now) - heartbeat < LEASE_STALE_MS,
+      lastCheckAt,
+      lastRunFinishedAt: finishedAt,
+      lastRunSummary: parseSummary(summary),
+    };
+  };
   return {
     maxParallelAgents: parseParallel(row?.parallel ?? null),
+    maxParallelTries: parseTries(row?.tries ?? null),
     hasRobotKey: row?.has_key === 1,
     robotKeyAt: row?.has_key === 1 ? (row.key_at ?? null) : null,
-    robot: {
-      running: Boolean(row?.run_id) && Date.parse(now) - heartbeat < LEASE_STALE_MS,
-      lastCheckAt: row?.last_check_at ?? null,
-      lastRunFinishedAt: row?.last_run_finished_at ?? null,
-      lastRunSummary: parseSummary(row?.last_run_summary ?? null),
-    },
+    robot: status(row?.run_id ?? null, row?.heartbeat_at ?? null, row?.last_check_at ?? null, row?.last_run_finished_at ?? null, row?.last_run_summary ?? null),
+    tryRobot: status(
+      row?.try_run_id ?? null,
+      row?.try_heartbeat_at ?? null,
+      row?.try_last_check_at ?? null,
+      row?.try_last_run_finished_at ?? null,
+      row?.try_last_run_summary ?? null,
+    ),
     lastGradedAt: row?.last_graded_at ?? null,
     lastModels: {
       // The kept values are those of the last save; before they existed, the
@@ -111,13 +140,20 @@ export async function getSettings(db: D1Database, teacherId: number, now: string
   };
 }
 
-export async function getMaxParallel(db: D1Database): Promise<number> {
-  const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(PARALLEL).first<{ value: string }>();
-  return parseParallel(row?.value ?? null);
+// The number of tasks a lane's run works on at once: papers for the teachers'
+// robot, Quick Tries for the try robot.
+export async function getMaxParallel(db: D1Database, lane: RobotLane = 'main'): Promise<number> {
+  const key = lane === 'try' ? PARALLEL_TRIES : PARALLEL;
+  const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>();
+  return lane === 'try' ? parseTries(row?.value ?? null) : parseParallel(row?.value ?? null);
 }
 
 export async function setMaxParallel(db: D1Database, value: number): Promise<void> {
   await setValue(db, PARALLEL, String(value));
+}
+
+export async function setMaxParallelTries(db: D1Database, value: number): Promise<void> {
+  await setValue(db, PARALLEL_TRIES, String(value));
 }
 
 // The model column of the class report: one setting for all tests, off until
@@ -145,9 +181,10 @@ export async function setRobotKeyHash(db: D1Database, hash: string, now: string)
 
 // The robot on the test page. startFailed: GitHub did not take the last
 // request to start the robot, no run checked in after it, and no run works now.
-export async function testPageRobot(db: D1Database, now: string): Promise<TestDetail['robot']> {
+export async function testPageRobot(db: D1Database, now: string, lane: RobotLane = 'main'): Promise<TestDetail['robot']> {
   const row = await db
-    .prepare('SELECT last_check_at, start_failed_at, run_id, heartbeat_at FROM runner_state WHERE id = 1')
+    .prepare('SELECT last_check_at, start_failed_at, run_id, heartbeat_at FROM runner_state WHERE id = ?')
+    .bind(LANE_ROW[lane])
     .first<{ last_check_at: string | null; start_failed_at: string | null; run_id: string | null; heartbeat_at: string | null }>();
   const failedAt = row?.start_failed_at ?? null;
   const lastCheckAt = row?.last_check_at ?? null;
@@ -160,6 +197,6 @@ export async function testPageRobot(db: D1Database, now: string): Promise<TestDe
 
 // The time a request to start the robot was sent, when GitHub did not take
 // it; null when GitHub took it.
-export async function saveRobotStart(db: D1Database, failedAt: string | null): Promise<void> {
-  await db.prepare('UPDATE runner_state SET start_failed_at = ? WHERE id = 1').bind(failedAt).run();
+export async function saveRobotStart(db: D1Database, failedAt: string | null, lane: RobotLane = 'main'): Promise<void> {
+  await db.prepare('UPDATE runner_state SET start_failed_at = ? WHERE id = ?').bind(failedAt, LANE_ROW[lane]).run();
 }

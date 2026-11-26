@@ -177,10 +177,13 @@ describe('test database', () => {
     expect(left).toEqual({ evaluations: 0, items: 0 });
   });
 
-  it('has exactly one robot state row', async () => {
-    const rows = await api.db.prepare('SELECT id, run_id FROM runner_state').all<{ id: number; run_id: string | null }>();
-    expect(rows.results).toEqual([{ id: 1, run_id: null }]);
-    await expect(api.db.prepare('INSERT INTO runner_state (id) VALUES (2)').run()).rejects.toThrow(/CHECK constraint failed/);
+  it('has one robot state row for each lane', async () => {
+    const rows = await api.db.prepare('SELECT id, run_id FROM runner_state ORDER BY id').all<{ id: number; run_id: string | null }>();
+    expect(rows.results).toEqual([
+      { id: 1, run_id: null },
+      { id: 2, run_id: null },
+    ]);
+    await expect(api.db.prepare('INSERT INTO runner_state (id) VALUES (3)').run()).rejects.toThrow(/CHECK constraint failed/);
   });
 
   it('has a file bucket', async () => {

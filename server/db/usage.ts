@@ -15,20 +15,23 @@ const COLUMN: Record<RobotWorkKind, string> = {
 // Adds one robot job to its day's row (migration 0035): the teacher's own row,
 // or the day's Quick Try row when the test is a try. The teacher and the kind
 // of test come from the test row, so a test deleted in the same moment counts
-// nothing, as in robot_work.
+// nothing, as in robot_work. A job that worked and that the backup Claude
+// account did (only Quick Try work) also counts in backup_jobs (migration 0039).
 export function countRobotWorkDay(
   db: D1Database,
-  work: { testId: number; kind: RobotWorkKind; ok: boolean; tokens?: number | null; at: string },
+  work: { testId: number; kind: RobotWorkKind; ok: boolean; tokens?: number | null; backup?: boolean; at: string },
 ): D1PreparedStatement {
   const column = work.ok ? COLUMN[work.kind] : 'failed';
   const tokens = work.ok ? (work.tokens ?? 0) : 0;
+  const backup = work.ok && work.backup === true ? 1 : 0;
   return db
     .prepare(
-      `INSERT INTO usage_days (day, quick_try, teacher_id, ${column}, tokens)
-       SELECT ?1, quick_try, CASE WHEN quick_try = 1 THEN 0 ELSE teacher_id END, 1, ?2 FROM tests WHERE id = ?3
-       ON CONFLICT (day, quick_try, teacher_id) DO UPDATE SET ${column} = ${column} + 1, tokens = tokens + excluded.tokens`,
+      `INSERT INTO usage_days (day, quick_try, teacher_id, ${column}, tokens, backup_jobs)
+       SELECT ?1, quick_try, CASE WHEN quick_try = 1 THEN 0 ELSE teacher_id END, 1, ?2, ?4 FROM tests WHERE id = ?3
+       ON CONFLICT (day, quick_try, teacher_id) DO UPDATE SET ${column} = ${column} + 1, tokens = tokens + excluded.tokens,
+         backup_jobs = backup_jobs + excluded.backup_jobs`,
     )
-    .bind(bucharestDay(new Date(work.at)), tokens, work.testId);
+    .bind(bucharestDay(new Date(work.at)), tokens, work.testId, backup);
 }
 
 // Adds one Quick Try to its day's row, when the try of this token exists: put
@@ -55,7 +58,8 @@ export async function readUsage(db: D1Database, source: UsageSource, period: Usa
   const { results } = await db
     .prepare(
       `SELECT substr(day, 1, ?1) AS key, SUM(papers) AS papers, SUM(barems) AS barems, SUM(exercise_lists) AS exerciseLists,
-         SUM(analyses) AS analyses, SUM(prints) AS prints, SUM(failed) AS failed, SUM(tokens) AS tokens, SUM(tries) AS tries
+         SUM(analyses) AS analyses, SUM(prints) AS prints, SUM(failed) AS failed, SUM(tokens) AS tokens, SUM(tries) AS tries,
+         SUM(backup_jobs) AS backupJobs
        FROM usage_days WHERE day >= ?2 ${SOURCE_FILTER[source]} GROUP BY key`,
     )
     .bind(length, from)

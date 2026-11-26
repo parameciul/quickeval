@@ -114,7 +114,8 @@ export type ClaudeProblem = 'timeout' | 'usage_limit' | 'not_logged_in' | 'inval
 // `tokens` is what Claude reported for the answer (see MAX_TOKENS in
 // shared/runner.ts), for the account's statistics.
 export type ClaudeOutcome =
-  | { ok: true; output: unknown; model: string; effort?: string; tokens: number }
+  // `backup`: the Quick Try robot's backup Claude account wrote it (failover.ts).
+  | { ok: true; output: unknown; model: string; effort?: string; tokens: number; backup?: true }
   | { ok: false; problem: ClaudeProblem; detail: string };
 
 // The fields of Claude Code's JSON result that the robot reads.

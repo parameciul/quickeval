@@ -2,19 +2,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { RobotSettings, RobotStatus, Settings } from '../../../shared/api.ts';
-import { MAX_PARALLEL_AGENTS, type RunSummary } from '../../../shared/runner.ts';
+import { MAX_PARALLEL_AGENTS, MAX_PARALLEL_TRIES, type RunSummary } from '../../../shared/runner.ts';
 import { countLabel, formatDate, formatDateTime } from '../../ui/format.ts';
 import { onTabKeyDown } from '../../ui/tabKeys.ts';
 import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
 import { UsageSection } from '../settingsPage/UsageSection.tsx';
-import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
+import { agoText, RobotLine, robotLine } from '../testPage/RobotLine.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { takeEndedName } from '../shell/viewing.ts';
 import { t } from '../../i18n/t.ts';
 
 const PARALLEL_OPTIONS = Array.from({ length: MAX_PARALLEL_AGENTS }, (_, index) => index + 1);
+const TRIES_OPTIONS = Array.from({ length: MAX_PARALLEL_TRIES }, (_, index) => index + 1);
 // A page left open reads the robot's state again this often (the robot checks
 // every 10 minutes, and the robot line moves on by itself).
 const REFRESH_MS = 60_000;
@@ -161,6 +162,10 @@ function GradingCard({ settings }: { settings: Settings }) {
     (value: number) => api.updateSettings(value),
     (before, value) => ({ ...before, maxParallelAgents: value }),
   );
+  const tries = useSettingSave(
+    (value: number) => api.setMaxParallelTries(value),
+    (before, value) => ({ ...before, maxParallelTries: value }),
+  );
   const model = useSettingSave(
     (show: boolean) => api.setShowModelColumn(show),
     (before, show) => ({ ...before, showModelColumn: show }),
@@ -191,6 +196,31 @@ function GradingCard({ settings }: { settings: Settings }) {
         </div>
       </div>
       {parallel.error && <ErrorMessage error={parallel.error} />}
+      <div className="settings-row">
+        <div>
+          <label htmlFor="parallel-tries">{t('Încercări rapide deodată')}</label>
+          <p id="parallel-tries-hint">
+            {t('Câte încercări rapide face robotul lor în același timp. Mai multe deodată răspund mai repede, dar ajung mai repede la limita planului Claude.')}
+          </p>
+        </div>
+        <div className="settings-control">
+          <select
+            id="parallel-tries"
+            aria-describedby="parallel-tries-hint"
+            value={settings.maxParallelTries}
+            aria-busy={tries.isPending}
+            onChange={(event) => tries.mutate(Number(event.target.value))}
+          >
+            {TRIES_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          {tries.isSuccess && <span role="status">{t('Salvat.')}</span>}
+        </div>
+      </div>
+      {tries.error && <ErrorMessage error={tries.error} />}
       <div className="settings-row">
         <div>
           <b id="model-title">{t('Coloana Model')}</b>
@@ -316,17 +346,26 @@ export function modelLines(models: RobotSettings): string[] {
   ].filter((text): text is string => text !== null);
 }
 
-// "Starea robotului": a tag in the head says whether it works now; then
-// today's lines.
+function RunningTag({ running }: { running: boolean }) {
+  return running ? <span className="tag tag-ok">{t('lucrează acum')}</span> : <span className="tag">{t('nu lucrează acum')}</span>;
+}
+
+// "Starea robotului": the two robots, each with a tag that says whether it
+// works now, then its lines: the teachers' robot, and the Quick Try robot,
+// which starts again by itself from a waiting try's page (no button here).
 function RobotState({ settings }: { settings: Settings }) {
   const lastRun = lastRunText(settings.robot);
+  const tryLastRun = lastRunText(settings.tryRobot);
   return (
     <section className="class-card" aria-labelledby="robot-state-title">
       <div className="class-card-head">
         <h2 id="robot-state-title">{t('Starea robotului')}</h2>
-        {settings.robot.running ? <span className="tag tag-ok">{t('lucrează acum')}</span> : <span className="tag">{t('nu lucrează acum')}</span>}
       </div>
-      <div className="settings-body">
+      <section className="settings-body robot-lane" aria-labelledby="robot-main-title">
+        <div className="robot-lane-head">
+          <h3 id="robot-main-title">{t('Robotul pentru profesori')}</h3>
+          <RunningTag running={settings.robot.running} />
+        </div>
         <RobotLine lastCheckAt={settings.robot.lastCheckAt} />
         {settings.configuredModel !== null && (
           <p>
@@ -344,8 +383,25 @@ function RobotState({ settings }: { settings: Settings }) {
         {modelLines(settings.lastModels).map((text) => (
           <p key={text}>{text}</p>
         ))}
+      </section>
+      <section className="settings-body robot-lane" aria-labelledby="robot-try-title">
+        <div className="robot-lane-head">
+          <h3 id="robot-try-title">{t('Robotul pentru încercări rapide')}</h3>
+          <RunningTag running={settings.tryRobot.running} />
+        </div>
+        {/* No late warning: this robot runs only when a try waits, and a
+            waiting try's page starts it again by itself. */}
+        <p className="hint">{robotLine(settings.tryRobot.lastCheckAt, Date.now()).text}</p>
+        <p className="hint">{t('Pornește singur când o încercare rapidă așteaptă.')}</p>
+        <p>{tryLastRun ?? t('Robotul nu a terminat încă nicio rulare.')}</p>
+      </section>
+      <div className="settings-body">
         <p className="hint">
           {t('Robotul corectează cu planul Claude prin tokenul din secretul GitHub')}{' '}<code>{t('CLAUDE_CODE_OAUTH_TOKEN')}</code>{t('. Tokenul ține un an: dacă lucrările nu se mai corectează, fă unul nou.')}
+        </p>
+        <p className="hint">
+          {t('Robotul pentru încercări rapide trece la contul Claude de rezervă, din secretul GitHub')}{' '}<code>{t('CLAUDE_CODE_OAUTH_TOKEN_BACKUP')}</code>
+          {t(', când primul cont e la limită sau nu merge. Când el se oprește pentru token, verifică ambele secrete.')}
         </p>
       </div>
     </section>

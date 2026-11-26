@@ -66,7 +66,7 @@ const byteLength = (value: unknown) => new TextEncoder().encode(JSON.stringify(v
 // Claude reads untrusted student pages, and its answer reaches the student's
 // result page. An answer that holds one of the run's secrets, or a Claude
 // token, is refused whatever else it says.
-const SECRET_NAMES = ['CLAUDE_CODE_OAUTH_TOKEN', 'QUICKEVAL_RUNNER_KEY'];
+const SECRET_NAMES = ['CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN_BACKUP', 'QUICKEVAL_RUNNER_KEY'];
 const MIN_SECRET_LENGTH = 8;
 
 export function leaksSecret(output: unknown, env: Record<string, string | undefined> = process.env): boolean {
@@ -77,6 +77,10 @@ export function leaksSecret(output: unknown, env: Record<string, string | undefi
     return value !== undefined && value.length >= MIN_SECRET_LENGTH && text.includes(value);
   });
 }
+
+// An answer of the backup account names it; any other answer sends nothing,
+// as an older robot's does.
+export const backupField = (backup: boolean): { backup?: true } => (backup ? { backup: true } : {});
 
 // Runs Claude, and once more when the answer cannot be used (spec §12.4: an
 // invalid output gets one more try with the same input).
@@ -109,15 +113,16 @@ export function refusal(err: unknown): 'dropped' | 'lease_lost' | 'invalid' | nu
 // that the API refuses although the robot's checks passed is sent again as
 // an invalid output, so the attempt counts: an output that is always refused
 // must end as failed, not be tried by every run.
-// `sendError` tells whether the work failed for good.
+// `sendError` tells whether the work failed for good. `backup` tells that the
+// backup Claude account wrote the answer.
 export async function sendOutcome(
   outcome: ClaudeOutcome,
-  sendAnswer: (output: unknown, model: string, effort: string, tokens: number) => Promise<unknown>,
+  sendAnswer: (output: unknown, model: string, effort: string, tokens: number, backup: boolean) => Promise<unknown>,
   sendError: (error: RobotError) => Promise<boolean>,
 ): Promise<TaskEnd> {
   try {
     if (outcome.ok) {
-      await sendAnswer(outcome.output, outcome.model, outcome.effort ?? '', outcome.tokens);
+      await sendAnswer(outcome.output, outcome.model, outcome.effort ?? '', outcome.tokens, outcome.backup === true);
       return 'saved';
     }
     const { problem } = outcome;
@@ -210,7 +215,8 @@ export async function makeExerciseList(ctx: TaskContext, testId: number, variant
     const outcome = await askClaude(ctx, 'exercise-list', cwd, (output) => checkExerciseList(output).ok);
     return sendOutcome(
       outcome,
-      (exerciseList, _model, _effort, tokens) => ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList, tokens }, variant),
+      (exerciseList, _model, _effort, tokens, backup) =>
+        ctx.api.sendExerciseList(testId, { ...post, ok: true, exerciseList, tokens, ...backupField(backup) }, variant),
       sendError,
     );
   });
@@ -231,8 +237,8 @@ export async function analyzeClass(ctx: TaskContext, testId: number): Promise<Ta
     const outcome = await askClaude(ctx, 'class-report', cwd, (output) => checkClassAnalysis(output).ok);
     return sendOutcome(
       outcome,
-      (analysis, model, effort, tokens) =>
-        ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: true, version: classResults.version, analysis, model, effort, tokens }),
+      (analysis, model, effort, tokens, backup) =>
+        ctx.api.sendAnalysis(testId, { runId: ctx.runId, ok: true, version: classResults.version, analysis, model, effort, tokens, ...backupField(backup) }),
       sendError,
     );
   });
@@ -262,7 +268,8 @@ export async function gradeSubmission(ctx: TaskContext, claim: ClaimResult): Pro
     const outcome = await askClaude(ctx, 'grade', cwd, (output) => checkGrading(output, list, subject).ok);
     return sendOutcome(
       outcome,
-      (result, model, effort, tokens) => ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort, tokens }),
+      (result, model, effort, tokens, backup) =>
+        ctx.api.sendResult(submissionId, { runId: ctx.runId, startedAt, ok: true, result, model, effort, tokens, ...backupField(backup) }),
       sendError,
     );
   });

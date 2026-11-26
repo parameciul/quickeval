@@ -12,6 +12,37 @@ export const LEASE_STALE_MS = 15 * 60 * 1000;
 
 export const MAX_PARALLEL_AGENTS = 4;
 
+// The robot's two lanes: the teachers' robot (main) and the Quick Try robot
+// (try). Each has its own lease row in runner_state and sees only the work of
+// its own tests (tests.quick_try). The robot names its lane with ?lane=try;
+// none is main, as an older robot asks.
+export const ROBOT_LANES = ['main', 'try'] as const;
+export type RobotLane = (typeof ROBOT_LANES)[number];
+export const LANE_ROW: Record<RobotLane, 1 | 2> = { main: 1, try: 2 };
+
+// The lane a request names: absent is main; anything else but "try" is no lane.
+export function parseLane(raw: string | undefined): RobotLane | null {
+  if (raw === undefined) return 'main';
+  return raw === 'try' ? 'try' : null;
+}
+
+// How many Quick Tries the try robot works on at once (Setări).
+export const MAX_PARALLEL_TRIES = 4;
+
+// An open page starts a stopped lane again (claimRobotRestart): never before a
+// run counts as dead, and at most once in this time.
+export const ROBOT_RESTART_MS = LEASE_STALE_MS;
+// After a run that stopped at the Claude plan's limit, the lane waits this
+// long. The teachers' robot waits an hour: the limit comes back after hours.
+// The Quick Try robot tries again sooner, because a person waits for it.
+export const RESTART_AFTER_LIMIT_MS: Record<RobotLane, number> = { main: 60 * 60_000, try: ROBOT_RESTART_MS };
+// After a run that stopped at an error (tasks failed in a row, or the API
+// failed), a page does not start the teachers' robot again: a person looks
+// first, and new work and "Pornește robotul" still start it. The Quick Try
+// robot has no button and its waiting visitor cannot ask, so it tries again
+// after an hour; a try's own attempts bound what that can cost.
+export const RESTART_AFTER_ERROR_MS: Record<RobotLane, number | null> = { main: null, try: 60 * 60_000 };
+
 // The largest body of an exercise list or a result, in bytes. A grading of 60
 // exercises with every text at its limit is far smaller; the saved raw output
 // then stays well under D1's 2 MB row limit.
@@ -83,6 +114,10 @@ const createdAtSchema = z.string().max(40).optional();
 // none.
 const tokensSchema = z.number().int().min(0).max(MAX_ROBOT_TOKENS).optional();
 
+// The Quick Try robot's backup Claude account wrote the answer: it counts in
+// usage_days.backup_jobs. Any other answer sends none.
+const backupSchema = z.literal(true).optional();
+
 // The exercise list is checked by checkExerciseList (shared/schemas.ts).
 export const exerciseListBody = z.discriminatedUnion('ok', [
   z.object({
@@ -92,6 +127,7 @@ export const exerciseListBody = z.discriminatedUnion('ok', [
     ok: z.literal(true),
     exerciseList: z.unknown(),
     tokens: tokensSchema,
+    backup: backupSchema,
   }),
   z.object({ runId: runIdSchema, filesVersion: filesVersionSchema, createdAt: createdAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
@@ -106,6 +142,7 @@ export const analysisBody = z.discriminatedUnion('ok', [
     model: z.string().max(100).optional(),
     effort: z.string().max(100).optional(),
     tokens: tokensSchema,
+    backup: backupSchema,
   }),
   z.object({ runId: runIdSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);
@@ -232,6 +269,7 @@ export const resultBody = z.discriminatedUnion('ok', [
     model: z.string().max(100),
     effort: z.string().max(100).optional(),
     tokens: tokensSchema,
+    backup: backupSchema,
   }),
   z.object({ runId: runIdSchema, startedAt: startedAtSchema, ok: z.literal(false), error: robotErrorSchema }),
 ]);

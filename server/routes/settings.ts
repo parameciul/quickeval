@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { updateSettingsBody } from '../../shared/api.ts';
 import { adminOnly } from '../auth/teacherAuth.ts';
-import { getSettings, setMaxParallel, setRobotKeyHash, setShowModel } from '../db/settings.ts';
+import { getSettings, setMaxParallel, setMaxParallelTries, setRobotKeyHash, setShowModel } from '../db/settings.ts';
 import type { AppEnv } from '../env.ts';
 import { nowIso, readJson } from '../http.ts';
 import { newRobotKey, sha256Hex } from '../secrets.ts';
@@ -18,6 +18,7 @@ export function settingsRoutes(): Hono<AppEnv> {
   routes.patch('/', async (c) => {
     const body = await readJson(c, updateSettingsBody);
     if (body.maxParallelAgents !== undefined) await setMaxParallel(c.env.DB, body.maxParallelAgents);
+    if (body.maxParallelTries !== undefined) await setMaxParallelTries(c.env.DB, body.maxParallelTries);
     if (body.showModelColumn !== undefined) await setShowModel(c.env.DB, body.showModelColumn);
     return c.json({ settings: await getSettings(c.env.DB, c.var.teacher.id, nowIso()) });
   });

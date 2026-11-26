@@ -1,6 +1,11 @@
 import type { RobotStart } from '../shared/api.ts';
+import type { RobotLane } from '../shared/runner.ts';
+import { claimRobotRestart, laneHasWork, type RestartScope } from './db/runner.ts';
 import { saveRobotStart } from './db/settings.ts';
 import type { AppOptions, Env } from './env.ts';
+
+// The GitHub event that starts each lane's robot job (.github/workflows/evaluate.yml).
+const EVENT: Record<RobotLane, string> = { main: 'evaluate-now', try: 'evaluate-try' };
 
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
@@ -12,7 +17,7 @@ const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 // logs one line for `wrangler pages deployment tail`: the HTTP status or the
 // error's name only. An error's message can hold the URL, and the URL holds
 // the repository.
-export async function dispatchRobot(env: Env, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+export async function dispatchRobot(env: Env, lane: RobotLane = 'main', fetchImpl: typeof fetch = fetch): Promise<boolean> {
   const repo = env.GITHUB_REPO?.trim() ?? '';
   const token = env.GITHUB_DISPATCH_TOKEN?.trim() ?? '';
   if (!REPO.test(repo) || token === '') return false;
@@ -27,7 +32,7 @@ export async function dispatchRobot(env: Env, fetchImpl: typeof fetch = fetch): 
         'User-Agent': 'MQGrader',
         'X-GitHub-Api-Version': '2022-11-28',
       },
-      body: JSON.stringify({ event_type: 'evaluate-now' }),
+      body: JSON.stringify({ event_type: EVENT[lane] }),
       signal: AbortSignal.timeout(5000),
     });
     if (res.status === 204) return true;
@@ -43,13 +48,27 @@ export async function dispatchRobot(env: Env, fetchImpl: typeof fetch = fetch): 
 // start at once, or it could not be started. The answer is also saved for the
 // test page, because a scheduled start happens in any teacher's or student's
 // request. The time is taken before GitHub's answer: a run that checks in
-// meanwhile hides the failure.
+// meanwhile hides the failure. It starts the lane of `options.robotLane`: the
+// Quick Try routes set it to try, every other path is the teachers' robot.
 export function robotStarter(options: AppOptions): (env: Env) => Promise<RobotStart> {
-  const dispatch = options.dispatchRobot ?? ((env: Env) => dispatchRobot(env));
+  const dispatch = options.dispatchRobot ?? ((env: Env, lane: RobotLane) => dispatchRobot(env, lane));
+  const lane = options.robotLane ?? 'main';
   return async (env) => {
     const askedAt = new Date().toISOString();
-    const taken = await dispatch(env);
-    await saveRobotStart(env.DB, taken ? null : askedAt);
+    const taken = await dispatch(env, lane);
+    await saveRobotStart(env.DB, taken ? null : askedAt, lane);
     return taken ? 'dispatched' : 'next_check';
   };
+}
+
+// An open page is the clock that GitHub's schedule is not: the teacher app's
+// version read and the try page's status read call this after their answer.
+// It starts the lane's robot again when no run of it is alive, none checked in
+// or was started this way lately, its last run did not end at a limit that
+// still holds, and the page's own work waits (claimRobotRestart, then
+// laneHasWork; the look at the work runs at most once per ROBOT_RESTART_MS).
+export async function restartIfStopped(env: Env, options: AppOptions, scope: RestartScope, now: string): Promise<void> {
+  if (!(await claimRobotRestart(env.DB, scope.lane, now))) return;
+  if (!(await laneHasWork(env.DB, scope, now))) return;
+  await robotStarter({ ...options, robotLane: scope.lane })(env);
 }

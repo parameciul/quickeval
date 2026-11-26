@@ -7,12 +7,13 @@ import { PDF_TYPE } from '../shared/files.ts';
 import { setRobotKey } from '../server/test/fixtures.ts';
 import { startTestApi, type TestApi } from '../server/test/testApi.ts';
 import { robotApi } from './api.ts';
-import { runRobot } from './run.ts';
+import { runTryRobot } from './runTry.ts';
 import { API_URL, fetchFrom, ROBOT_KEY } from './test/robotWorld.ts';
 import { answer, scriptedClaude } from './test/scriptedClaude.ts';
 
-// A Quick Try paper goes through the robot as a class paper does: exercise
-// list, then grading. The robot makes no print PDF and no class analysis for it.
+// A Quick Try paper goes through the Quick Try robot (the try lane) as a class
+// paper goes through the teachers' robot: exercise list, then grading. The
+// robot makes no print PDF and no class analysis for it.
 
 const LIST: ExerciseList = {
   totalPoints: 10,
@@ -66,8 +67,8 @@ describe('a Quick Try paper', () => {
     expect((await api.request('POST', `/api/try/${token}/start`, {})).body.status).toBe('evaluating');
 
     const claude = scriptedClaude(answer(LIST), answer(GRADING));
-    const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(api), retryDelayMs: 0 });
-    const report = await runRobot({ api: robot, claude: claude.run, runId: 'run-quick-try-1', root: folder('qe-run-'), workdir: { skillDir: skill() }, heartbeatMs: 60_000 });
+    const robot = robotApi(API_URL, ROBOT_KEY, { fetch: fetchFrom(api), retryDelayMs: 0, lane: 'try' });
+    const report = await runTryRobot({ api: robot, claude: claude.run, runId: 'run-quick-try-1', root: folder('qe-run-'), workdir: { skillDir: skill() }, heartbeatMs: 60_000, idlePollMs: 10 });
     expect(report.summary).toMatchObject({ exerciseLists: 1, graded: 1, failed: 0, analyses: 0, prints: 0, stop: 'done' });
     expect(claude.calls.map((call) => call.task.mode)).toEqual(['exercise-list', 'grade']);
     const test = await api.db.prepare('SELECT status, analysis_status, print_status FROM tests WHERE quick_try = 1').first();

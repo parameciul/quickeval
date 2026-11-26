@@ -3,6 +3,7 @@ import type { Teacher, Viewing } from '../shared/api.ts';
 import type { QuickTryRow } from './db/quickTry.ts';
 import type { EmailMessage } from './email.ts';
 import type { PaidFeatures } from '../shared/payments.ts';
+import type { RobotLane } from '../shared/runner.ts';
 import type { CreateCheckoutSession } from './payments/stripe.ts';
 
 // Bindings and settings of the Pages project (wrangler.toml, Pages settings, .dev.vars).
@@ -32,8 +33,11 @@ export interface Env {
 
 // Parts of the app that tests replace.
 export interface AppOptions {
-  // Asks the robot to start at once; true when the request was taken.
-  dispatchRobot?: (env: Env) => Promise<boolean>;
+  // Asks the lane's robot to start at once; true when the request was taken.
+  dispatchRobot?: (env: Env, lane: RobotLane) => Promise<boolean>;
+  // The robot lane that these routes start: try for the Quick Try routes,
+  // main (the default) for the teachers' routes.
+  robotLane?: RobotLane;
   // Sends an email; true when it was taken.
   sendEmail?: (env: Env, message: EmailMessage) => Promise<boolean>;
   // The features on sale (default PAID_FEATURES), and the call that makes a Stripe payment page.
