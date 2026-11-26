@@ -6,7 +6,7 @@ import { laneFromEnv, RobotApiError, robotApiFromEnv } from './api.ts';
 import type { ClaudeRunner, ClaudeSettings } from './claude.ts';
 import { makeBarem } from './baremTask.ts';
 import { claudeRunner, claudeSettings } from './claude.ts';
-import { failoverRunner } from './failover.ts';
+import { backupRunner, failoverRunner } from './failover.ts';
 import { log } from './log.ts';
 import type { PrintTools } from './printTask.ts';
 import { dockerTools, makePrint, PrintSetupError } from './printTask.ts';
@@ -169,7 +169,8 @@ export interface MainOptions extends RobotApiOptions {
 // The Claude of a run: the main account, and for the Quick Try robot the
 // backup account after it (failover.ts). Each account has its own settings
 // folder next to the task folders, never inside one, and gets only its own
-// token. With only the backup token, the backup is the one account.
+// token. With only the backup token, the backup is the one account, and its
+// jobs count as the backup's.
 async function accountsRunner(
   env: Record<string, string | undefined>,
   root: string,
@@ -184,7 +185,7 @@ async function accountsRunner(
   };
   const primary = mainToken ? await account(mainToken, 'claude-config') : null;
   const backup = backupToken ? await account(backupToken, 'claude-config-backup') : null;
-  return primary ? failoverRunner(primary, backup) : backup!;
+  return primary ? failoverRunner(primary, backup) : backupRunner(backup!);
 }
 
 // The robot step of the GitHub workflow: `node runner/run.ts`.

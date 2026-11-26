@@ -26,5 +26,8 @@ describe('Setări, in English', () => {
     expect(within(teachers).getByText('not working now')).toBeInTheDocument();
     const tries = screen.getByRole('region', { name: 'The Quick Try robot' });
     expect(within(tries).getByText('not working now')).toBeInTheDocument();
+    expect(within(tries).getByText('It starts by itself when a Quick Try waits.')).toBeInTheDocument();
+    expect(within(tries).queryByText('The grading may be late.')).not.toBeInTheDocument();
+    expect(screen.getByText(/when the first account is at its limit or does not work/)).toBeInTheDocument();
   });
 });

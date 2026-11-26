@@ -28,9 +28,12 @@ export async function runTryRobot(options: RunOptions): Promise<RunReport> {
   // lease), so this list in memory keeps two slots off one barem or list; a
   // paper is claimed in SQL.
   const busy = new Set<number>();
-  // As in the teachers' run: a barem that ended other than `retry` is tried
-  // once per run, and a list once per run.
+  // A list is tried once per run, and a barem twice at most: the teachers' run
+  // tries a `retry` barem again a round later, but a free slot here would take
+  // it again at once, use up its attempts in a row and stop the run at an
+  // error. Its last attempt is left to a later run.
   const baremsTried = new Set<number>();
+  const baremsRetried = new Set<number>();
   const listsTried = new Set<number>();
 
   // The next task no other slot has, or null when none is left. The pick and
@@ -43,7 +46,8 @@ export async function runTryRobot(options: RunOptions): Promise<RunReport> {
       return async () => {
         try {
           const end = await makeBarem(ctx, barem, 'class');
-          if (end !== 'retry') baremsTried.add(barem);
+          if (end !== 'retry' || baremsRetried.has(barem)) baremsTried.add(barem);
+          else baremsRetried.add(barem);
           record(end, 'barems');
         } finally {
           busy.delete(barem);

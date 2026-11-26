@@ -676,6 +676,9 @@ describe('main', () => {
       expect(await main_(env, { fetch: fetchFrom(world!.api), retryDelayMs: 0, claudeFor, workdir: { skillDir: skill() }, idlePollMs: 10 })).toBe(0);
       expect(made).toEqual(['backup-token-5678']);
       expect(backup.calls).toHaveLength(2);
+      // The backup alone did the work: its jobs count as the backup's.
+      const day = await world!.api.db.prepare('SELECT backup_jobs FROM usage_days WHERE quick_try = 1').first<{ backup_jobs: number }>();
+      expect(day!.backup_jobs).toBe(2);
       expect(await main_({ ...base(), QE_LANE: 'try' }, { fetch: fetchFrom(world!.api), claudeFor })).toBe(1);
     });
   });

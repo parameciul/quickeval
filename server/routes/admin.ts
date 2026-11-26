@@ -29,9 +29,12 @@ export function adminRoutes(options: AppOptions = {}): Hono<AppEnv> {
   // It is also the clock that starts the teachers' robot again after a stop
   // (restartIfStopped), after the answer, which does not wait for it. A view
   // of a teacher's account starts it too: a start changes no teacher data.
+  // The work in the background counts against the request's 15 D1 queries: at
+  // worst about 13 (the session, promoteDue's batch, the version, the restart
+  // claim, the work look, saveRobotStart). Count them before adding more.
   routes.get('/version', async (c) => {
     const base = await dataVersion(c.env.DB, c.var.teacher.id);
-    inBackground(c, restartIfStopped(c.env, options, { lane: 'main', teacherId: c.var.teacher.id }, nowIso()));
+    inBackground(c, restartIfStopped(c.env, options, { lane: 'main' }, nowIso()));
     const viewing = c.var.viewing?.viewing;
     return c.json({ version: viewing ? `${base}|v${viewing.id}` : base } satisfies DataVersion);
   });

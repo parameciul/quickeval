@@ -110,13 +110,16 @@ describe("the teachers' robot starts again", () => {
     expect(row!.restart_at).toBe(T0.toISOString());
   });
 
-  it("does not start for another teacher's work", async () => {
+  it("starts for another teacher's work too: one robot serves all teachers", async () => {
+    // An idle tab (an administrator's Setări, a "Vezi ca" view) must not use
+    // the 15 minutes for nothing while another teacher's class waits.
     await api.db.prepare("UPDATE tests SET status = 'done' WHERE id = ?").bind(testId).run();
     const other = await otherTeacherTest(api, 'ana@example.com');
     await addSubmission(api, other.code, other.studentId, { status: 'submitted', files: 1 });
     await api.db.prepare("UPDATE tests SET status = 'evaluating' WHERE code = ?").bind(other.code).run();
     await version();
-    expect(dispatchRobot).not.toHaveBeenCalled();
+    expect(dispatchRobot).toHaveBeenCalledTimes(1);
+    expect(dispatchRobot).toHaveBeenLastCalledWith(expect.anything(), 'main');
   });
 
   it("does not start the try robot from a teacher's page", async () => {

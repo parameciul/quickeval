@@ -141,6 +141,16 @@ describe('robot lanes', () => {
     expect(await paper(tryPaper)).toEqual({ status: 'grading', run_id: TRY_RUN });
   });
 
+  it("a check of one lane leaves a dead run of the other lane's paper to that lane", async () => {
+    // A main run that died with a class paper in grading: only a main check or
+    // lease gives it back, as a try check leaves the main lane alone.
+    await api.db.prepare("UPDATE submissions SET status = 'grading', run_id = 'dead-main-run1' WHERE id = ?").bind(classPapers[0]).run();
+    await robot('POST', '/check?lane=try');
+    expect(await paper(classPapers[0]!)).toEqual({ status: 'grading', run_id: 'dead-main-run1' });
+    await robot('POST', '/check');
+    expect(await paper(classPapers[0]!)).toEqual({ status: 'submitted', run_id: null });
+  });
+
   it("a check of one lane leaves the live run of the other lane's paper in grading", async () => {
     await robot('POST', '/lease?lane=try', { runId: TRY_RUN });
     await robot('POST', '/claim?lane=try', { runId: TRY_RUN });

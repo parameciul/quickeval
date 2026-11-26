@@ -176,6 +176,17 @@ describe('runTryRobot', () => {
     expect(report.summary).toMatchObject({ barems: 2, failed: 0, stop: 'done' });
   });
 
+  it('tries a barem that waits for another attempt once more, then leaves it to the next run', async () => {
+    await tryApi(2);
+    await addTry(api!, 'requested');
+    // Two attempts fail; the third (the last one) belongs to a later run, so
+    // the run does not reach three failures in a row and stop at an error.
+    const claude = scriptedClaude(problem('crash'), problem('crash'));
+    const report = await runTryRobot(options(claude));
+    expect(claude.calls).toHaveLength(2);
+    expect(report).toEqual({ summary: { exerciseLists: 0, graded: 0, failed: 0, analyses: 0, prints: 0, barems: 0, stop: 'done' }, exitCode: 0 });
+  });
+
   it('never gives one barem to two slots', async () => {
     await tryApi(3);
     await addTry(api!, 'requested');

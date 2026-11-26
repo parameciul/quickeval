@@ -133,17 +133,18 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
 }
 
 // Whose work an open page looks at before it starts a lane again: the try
-// page's own test, or the teacher's own class tests.
-export type RestartScope = { lane: 'try'; testId: number } | { lane: 'main'; teacherId: number };
+// page's own test, or every teacher's class tests. The main look is lane-wide:
+// one robot serves all teachers, and the look takes the lane's 15 minutes, so
+// an idle tab (Setări, "Vezi ca") must not use them for nothing while another
+// teacher's class waits. It runs at most once in ROBOT_RESTART_MS.
+export type RestartScope = { lane: 'try'; testId: number } | { lane: 'main' };
 
 // Whether the page's work waits for its lane's robot.
 export async function laneHasWork(db: D1Database, scope: RestartScope, now: string): Promise<boolean> {
   const statement =
     scope.lane === 'try'
       ? db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND t.quick_try = 1 AND (${robotWorkSql()}) LIMIT 1`).bind(scope.testId, staleBefore(now))
-      : db
-          .prepare(`SELECT 1 AS found FROM tests t WHERE t.teacher_id = ? AND t.quick_try = 0 AND (${robotWorkSql()}) LIMIT 1`)
-          .bind(scope.teacherId, staleBefore(now));
+      : db.prepare(`SELECT 1 AS found FROM tests t WHERE t.quick_try = 0 AND (${robotWorkSql()}) LIMIT 1`).bind(staleBefore(now));
   return (await statement.first<{ found: number }>()) !== null;
 }
 
@@ -179,8 +180,9 @@ export async function claimRobotRestart(db: D1Database, lane: RobotLane, now: st
 }
 
 // The robot's regular check, in one transaction:
-// - an upload left in grading by a run that died or ended goes back to the
-//   queue, so no upload is lost when no new run takes the lease;
+// - an upload of the lane's own tests left in grading by a run that died or
+//   ended goes back to the queue, so no upload is lost when no new run takes
+//   the lease (the other lane's check or lease does that for its own);
 // - scheduled evaluations whose time has come start, and finished tests end;
 // - the time of the check is saved for the robot line;
 // - the counts say whether a run has work.
@@ -195,7 +197,8 @@ export async function runCheck(
     db
       .prepare(
         `UPDATE submissions SET status = 'submitted', run_id = NULL
-         WHERE status = 'grading' AND ${NO_LIVE_RUN('submissions.run_id')}`,
+         WHERE status = 'grading' AND ${NO_LIVE_RUN('submissions.run_id')}
+           AND EXISTS (SELECT 1 FROM tests t WHERE t.id = submissions.test_id AND ${mine})`,
       )
       .bind(staleBefore(now)),
     ...promoteStatements(db, now),

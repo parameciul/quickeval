@@ -9,7 +9,7 @@ import { useApi } from '../ApiContext.tsx';
 import { ErrorMessage } from '../ErrorMessage.tsx';
 import { AccountsSection } from '../settingsPage/AccountsSection.tsx';
 import { UsageSection } from '../settingsPage/UsageSection.tsx';
-import { agoText, RobotLine } from '../testPage/RobotLine.tsx';
+import { agoText, RobotLine, robotLine } from '../testPage/RobotLine.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
 import { takeEndedName } from '../shell/viewing.ts';
 import { t } from '../../i18n/t.ts';
@@ -389,12 +389,19 @@ function RobotState({ settings }: { settings: Settings }) {
           <h3 id="robot-try-title">{t('Robotul pentru încercări rapide')}</h3>
           <RunningTag running={settings.tryRobot.running} />
         </div>
-        <RobotLine lastCheckAt={settings.tryRobot.lastCheckAt} />
+        {/* No late warning: this robot runs only when a try waits, and a
+            waiting try's page starts it again by itself. */}
+        <p className="hint">{robotLine(settings.tryRobot.lastCheckAt, Date.now()).text}</p>
+        <p className="hint">{t('Pornește singur când o încercare rapidă așteaptă.')}</p>
         <p>{tryLastRun ?? t('Robotul nu a terminat încă nicio rulare.')}</p>
       </section>
       <div className="settings-body">
         <p className="hint">
           {t('Robotul corectează cu planul Claude prin tokenul din secretul GitHub')}{' '}<code>{t('CLAUDE_CODE_OAUTH_TOKEN')}</code>{t('. Tokenul ține un an: dacă lucrările nu se mai corectează, fă unul nou.')}
+        </p>
+        <p className="hint">
+          {t('Robotul pentru încercări rapide trece la contul Claude de rezervă, din secretul GitHub')}{' '}<code>{t('CLAUDE_CODE_OAUTH_TOKEN_BACKUP')}</code>
+          {t(', când primul cont e la limită sau nu merge. Când el se oprește pentru token, verifică ambele secrete.')}
         </p>
       </div>
     </section>

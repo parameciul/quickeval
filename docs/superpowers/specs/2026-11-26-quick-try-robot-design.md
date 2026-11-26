@@ -37,7 +37,7 @@ Quick Try (`docs/superpowers/specs/2026-11-09-quick-try-design.md`) is how a pos
 
 ## Constraints
 
-- The lease row is checked in many places: `takeLease` (it sends other runs' papers in grading back to the queue), `/check` (it resets a dead run's papers), `HOLDS_LEASE` in the claim and in every save (grading, list, barem, print, analysis), and Setări's "running" status and "Pornește robotul". Each one must name its robot.
+- The lease row is checked in many places: `takeLease` (it sends other runs' papers in grading back to the queue), `/check` (it resets a dead run's papers), `HOLDS_LEASE` in the claim and in every save of a list, barem, print or analysis (a grading checks the run that claimed the paper, and the claim is already lane-scoped), and Setări's "running" status and "Pornește robotul". Each one must name its robot.
 - `runner_state` has `CHECK (id = 1)`. SQLite cannot change a CHECK, so a second row needs a rebuilt table or a new table. A new migration runs on the live database before the code reaches `main`.
 - Functions: at most 10 ms of CPU and 15 D1 queries per request. A new read on the try page's timer counts against the 5 million rows a day.
 - The robot's Claude gets only the variables it needs (`claudeEnv`), with exactly one Claude token per call. Each account gets its own `CLAUDE_CONFIG_DIR`, next to the work folders, never inside one.
@@ -63,7 +63,7 @@ The user picked A. They also asked for a separate "at the same time" setting for
 - Each lane has its own lease row, with the same columns as `runner_state` today. *(Builder's call: rebuild `runner_state` with a `lane` key, or add a second table.)*
 - Every robot request names its lane. An absent lane means `main`, so an older robot still works. *(Builder's call: a query parameter `lane=try` or a header. It must be English.)*
 - Both lanes use the same robot key (`QUICKEVAL_RUNNER_KEY`).
-- The work a lane sees is filtered in SQL by `tests.quick_try`. `main` sees only `quick_try = 0`. `try` sees only `quick_try = 1`. This holds for `/check`, the task list, the claim, every job read, and every save.
+- The work a lane sees is filtered in SQL by `tests.quick_try`. `main` sees only `quick_try = 0`. `try` sees only `quick_try = 1`. This holds for `/check`, the task list, the claim, and every save but a grading (it checks the run that claimed the paper). *(Built:)* a job read is not filtered: the robot reads only tests from its own lane's task list.
 - A lane's `takeLease` and `/check` send back to the queue only the papers in grading of a dead run of the same lane.
 - `HOLDS_LEASE` checks the lane's own row.
 
@@ -86,7 +86,7 @@ Today a stopped run stays stopped. GitHub's 10-minute schedule never fires for t
   - the last run did not end with `usage_limit` less than 60 minutes ago (`main`) or 15 minutes ago (`try`);
   - the last run did not end with `claude_login`. A token that Claude refuses needs a person: a start would only fail again and send GitHub's failure email.
   - the last run did not end with `error` either (three tasks in a row used an attempt, or the API failed). *(My call, after the final review:)* a person looks first; a start every 15 minutes would use three more attempts of the waiting papers each time, until a class is all failed.
-- Only after that statement wins does the server look for work: the waiting try's own test, or the teacher's own class tests. With no work, nothing starts, and the next look is 15 minutes later. New work starts the robot at once anyway, so this wait touches only work that a stopped run left.
+- Only after that statement wins does the server look for work: the waiting try's own test, or every teacher's class tests. *(Changed after the final review:)* the main look is lane-wide, because the look takes the lane's 15 minutes: an idle tab (Setări, "Vezi ca") must not use them for nothing while another teacher's class waits. With no work, nothing starts, and the next look is 15 minutes later. New work starts the robot at once anyway, so this wait touches only work that a stopped run left.
 - *(The user asked for the restart; the numbers are my call.)* 15 minutes is the floor: a run counts as dead only after 15 minutes without a heartbeat. It is under the 30 minutes after which the test page shows "Pornește robotul", so the button shows only when the automatic start did not work. After a usage limit, the teachers' robot waits 60 minutes, because a Claude plan's limit comes back after hours, not minutes: a start every 15 minutes would mostly hit the limit again. *(The user's choice:)* the Quick Try robot waits only 15 minutes, because a person waits for that answer; its extra runs are short, free on this public repo, and happen only while a try waits and its page is open. If the real limit output (below) names the time the limit ends, the 60 minutes can follow it.
 - A start while an older `main` job still runs (the 2-hour budget in a 180-minute job) waits in the concurrency group. GitHub keeps one waiting run per group, so starts do not pile up.
 - An administrator's view of a teacher ("Vezi ca") reads the version too, and starts the robot the same way. A start changes no teacher data.

@@ -11,14 +11,19 @@ import { log } from './log.ts';
 
 const CHANGES_ACCOUNT = new Set(['usage_limit', 'not_logged_in']);
 
-export function failoverRunner(primary: ClaudeRunner, backup: ClaudeRunner | null): ClaudeRunner {
-  if (!backup) return primary;
-  let usingBackup = false;
-  // Every answer the backup wrote says so, for the usage statistics.
-  const onBackup = async (task: Parameters<ClaudeRunner>[0]): Promise<ClaudeOutcome> => {
+// The backup account's runner: every answer it wrote says so, for the usage
+// statistics. Also the one account of a run that has only the backup token.
+export function backupRunner(backup: ClaudeRunner): ClaudeRunner {
+  return async (task): Promise<ClaudeOutcome> => {
     const outcome = await backup(task);
     return outcome.ok ? { ...outcome, backup: true } : outcome;
   };
+}
+
+export function failoverRunner(primary: ClaudeRunner, backup: ClaudeRunner | null): ClaudeRunner {
+  if (!backup) return primary;
+  let usingBackup = false;
+  const onBackup = backupRunner(backup);
   return async (task) => {
     if (usingBackup) return onBackup(task);
     const outcome = await primary(task);

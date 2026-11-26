@@ -285,6 +285,27 @@ describe('SettingsPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('gives the Quick Try robot no late warning: it runs only when a try waits', async () => {
+    const settings = fakeSettings({
+      tryRobot: { running: false, lastCheckAt: new Date(Date.now() - 3 * 3_600_000).toISOString(), lastRunFinishedAt: null, lastRunSummary: null },
+    });
+    renderAdmin(ROBOT, withSettings(settings));
+    const tries = await screen.findByRole('region', { name: 'Robotul pentru încercări rapide' });
+    expect(within(tries).queryByText('Corectarea poate întârzia.')).not.toBeInTheDocument();
+    expect(within(tries).getByText(/^Robotul a verificat ultima dată la/)).toBeInTheDocument();
+    expect(within(tries).getByText('Pornește singur când o încercare rapidă așteaptă.')).toBeInTheDocument();
+    // The teachers' robot still warns.
+    const teachers = screen.getByRole('region', { name: 'Robotul pentru profesori' });
+    expect(within(teachers).getByText('Corectarea poate întârzia.')).toBeInTheDocument();
+  });
+
+  it('names the backup Claude secret of the Quick Try robot', async () => {
+    renderAdmin(ROBOT, withSettings());
+    const state = await screen.findByRole('region', { name: 'Starea robotului' });
+    expect(within(state).getByText('CLAUDE_CODE_OAUTH_TOKEN_BACKUP')).toBeInTheDocument();
+    expect(within(state).getByText(/când primul cont e la limită sau nu merge/)).toBeInTheDocument();
+  });
+
   it('says when the robot never ran', async () => {
     renderAdmin(ROBOT, withSettings());
     const teachers = await screen.findByRole('region', { name: 'Robotul pentru profesori' });
