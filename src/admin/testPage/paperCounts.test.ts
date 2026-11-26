@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { UploadRow } from '../../../shared/api.ts';
 import { fakeUpload } from '../../test/fakeApi.ts';
-import { NO_CES, paperCounts } from './paperCounts.ts';
+import { NO_CES, paperCounts, papersTag } from './paperCounts.ts';
 
 let next = 1;
 const row = (overrides: Partial<UploadRow>): UploadRow => {
@@ -104,5 +104,48 @@ describe('paperCounts', () => {
     const counts = paperCounts('done', 1, [row({ status: 'graded', fileCount: 1 }), row({ status: 'graded', fileCount: 1, active: false })], NO_CES);
     expect(counts.total).toBe(2);
     expect(counts.parts).toEqual([{ part: 'graded', count: 2 }]);
+  });
+});
+
+describe('papersTag', () => {
+  it('names the parts of a test in grading, without the students who did not take part', () => {
+    const counts = paperCounts('evaluating', 25, [
+      ...Array.from({ length: 12 }, () => row({ status: 'graded', fileCount: 1 })),
+      ...Array.from({ length: 11 }, () => row({ status: 'grading', fileCount: 1 })),
+    ], NO_CES);
+    expect(papersTag(counts)).toEqual({ text: '12 corectate · 11 se corectează', all: false });
+  });
+
+  it('puts "de" after 20 for the graded ones, never for a verb', () => {
+    const counts = paperCounts('evaluating', 45, [
+      ...Array.from({ length: 21 }, () => row({ status: 'graded', fileCount: 1 })),
+      ...Array.from({ length: 22 }, () => row({ status: 'grading', fileCount: 1 })),
+      ...Array.from({ length: 1 }, () => row({ status: 'failed', fileCount: 1 })),
+    ], NO_CES);
+    expect(papersTag(counts)?.text).toBe('21 de corectate · 22 se corectează · 1 eșuată');
+  });
+
+  it('says where the papers of an open test are', () => {
+    const counts = paperCounts('open', 6, [
+      row({ status: 'submitted', fileCount: 2 }),
+      row({ status: 'uploading', fileCount: 1 }),
+      row({ status: 'none' }),
+    ], NO_CES);
+    expect(papersTag(counts)?.text).toBe('1 așteaptă corectarea · 1 încarcă acum · 4 încă nu au trimis');
+  });
+
+  it('is green once every paper that took part is graded', () => {
+    const counts = paperCounts('done', 3, [row({ status: 'graded', fileCount: 1 }), row({ status: 'graded', fileCount: 1 }), row({ status: 'none' })], NO_CES);
+    expect(papersTag(counts)).toEqual({ text: 'toate corectate', all: true });
+  });
+
+  it('stays grey while students of an open test have still to send, all sent papers graded', () => {
+    const counts = paperCounts('open', 6, [row({ status: 'graded', fileCount: 1 }), row({ status: 'graded', fileCount: 1 })], NO_CES);
+    expect(counts.complete).toBe(true);
+    expect(papersTag(counts)).toEqual({ text: '2 corectate · 4 încă nu au trimis', all: false });
+  });
+
+  it('has nothing to say when no student took part', () => {
+    expect(papersTag(paperCounts('done', 2, [row({ status: 'none' })], NO_CES))).toBeNull();
   });
 });

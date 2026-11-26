@@ -182,7 +182,8 @@ describe('TestPage evaluation', () => {
     const api = evaluationApi({ evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#grading`, api);
-    expect(await screen.findByText('✓ Corectat complet')).toBeInTheDocument();
+    // Marin Dan can still send: the label stays grey until the uploads close.
+    expect(await screen.findByText('2 corectate · 1 încă nu a trimis')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).not.toBeInTheDocument();
     expect(screen.queryByText('Bifează în tabel cel puțin o lucrare cu fișiere.')).not.toBeInTheDocument();
     const finish = screen.getByRole('button', { name: 'Marchează ca terminat' });
@@ -194,6 +195,17 @@ describe('TestPage evaluation', () => {
     expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
   });
 
+  it('labels the papers "toate corectate" in green once the uploads closed and every paper is graded', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    renderAdmin(`${PAGE}#grading`, evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows));
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    expect(within(papers).getByText('toate corectate', { selector: '.tag' })).toHaveClass('tag-ok');
+  });
+
   it('keeps the start button while a sent paper waits for grading', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
@@ -202,7 +214,7 @@ describe('TestPage evaluation', () => {
     renderAdmin(`${PAGE}#grading`, evaluationApi({}, rows));
     expect(await screen.findByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
-    expect(screen.queryByText('✓ Corectat complet')).not.toBeInTheDocument();
+    expect(screen.queryByText('toate corectate')).not.toBeInTheDocument();
   });
 
   it('saves the indications for the barem from a text box that is always open', async () => {
@@ -443,12 +455,11 @@ describe('TestPage evaluation', () => {
     ];
     const api = evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     renderAdmin(`${PAGE}#grading`, api);
-    expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 2 elevi au participat' })).toBeInTheDocument();
-    const legend = document.querySelector<HTMLElement>('.papers-progress')!;
-    expect(within(legend).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Eșuate 1']);
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    expect(within(papers).getByText('1 corectată · 1 eșuată', { selector: '.tag' })).toBeInTheDocument();
     // The points to check are named in the stage list, "Urmează" and the bar at the foot, not over the table.
-    expect(within(legend).queryByText('2 puncte de verificat')).not.toBeInTheDocument();
-    expect(within(legend).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
+    expect(within(papers).queryByText('2 puncte de verificat')).not.toBeInTheDocument();
+    expect(within(papers).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
     expect(screen.getByText('Acum · corectarea a pornit pe 7 oct. 2026, 11:00')).toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('8,75')).toBeInTheDocument();

@@ -71,7 +71,8 @@ describe('TestsPage', () => {
     const bars = row.querySelector('.stage-bars')!;
     expect(bars).toHaveAttribute('aria-hidden', 'true');
     expect([...bars.children].map((bar) => bar.className)).toEqual(['is-done', 'is-done', 'is-now', 'is-later', 'is-wait', 'is-later']);
-    expect(row.querySelector('.papers-progress')).toBeNull();
+    // The papers' label of the test page is not on the row: the stage bar says it.
+    expect(within(row).queryByText(/corectate|toate corectate/, { selector: '.tag' })).not.toBeInTheDocument();
   });
 
   it('links each test to its page and offers a new test', async () => {

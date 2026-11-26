@@ -308,9 +308,18 @@ describe('TestPage', () => {
     expect(screen.queryByRole('heading', { name: 'Nicio lucrare trimisă încă' })).not.toBeInTheDocument();
   });
 
+  it('shows no papers label in Corectare before the test starts', async () => {
+    renderAdmin(`${PAGE}#grading`, apiWith({ status: 'draft' }));
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    expect(papers.querySelector('.stage-section-meta')).toBeNull();
+  });
+
   it('lists the uploads of the students', async () => {
     renderAdmin(`${PAGE}#in-class`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN, submittedCount: 1, studentCount: 3 }));
-    expect(await screen.findByRole('heading', { name: 'Lucrări: 1 din 3 elevi au trimis' })).toBeInTheDocument();
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    expect(within(papers).getByText('1 așteaptă corectarea · 1 încarcă acum · 1 încă nu a trimis', { selector: '.tag' })).not.toHaveClass('tag-ok');
+    // "Lucrările" of Fișa testului waits for the uploads to close.
+    expect(within(sheet()).queryByText('Lucrările')).not.toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('Trimis')).toBeInTheDocument();
     expect(within(pop).getByText('Fără confirmare')).toBeInTheDocument();
@@ -349,19 +358,25 @@ describe('TestPage', () => {
     expect(within(stan).queryByText(/Redeschide încărcarea/)).not.toBeInTheDocument();
   });
 
-  it('shows the papers bar with each part named, and no points line when none waits', async () => {
+  it('names where the papers are beside "Elevii" and in Fișa testului, with no bar over the table', async () => {
     const rows = [
       fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
       fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'uploading', fileCount: 2 }),
       fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
     ];
     renderAdmin(`${PAGE}#grading`, createFakeApi({ classes: [], students: {}, tests: [fakeTest({ status: 'done', studentCount: 3 }, rows)] }));
-    expect(await screen.findByRole('heading', { name: 'Lucrări: 2 din 3 elevi au participat' })).toBeInTheDocument();
-    const box = document.querySelector<HTMLElement>('.papers-progress')!;
-    expect(within(box).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Corectate 1', 'Așteaptă corectarea 1', 'Nu au participat 1']);
-    expect(box.querySelector('.papers-bar')).toHaveAttribute('aria-hidden', 'true');
-    expect(within(box).queryByText('✓ Corectat complet')).not.toBeInTheDocument();
-    expect(within(box).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    // The students who did not take part are named by the table and Fișa testului, not by the label.
+    expect(within(papers).getByText('1 corectată · 1 așteaptă corectarea', { selector: '.tag' })).toBeInTheDocument();
+    expect(within(papers).queryByText('toate corectate')).not.toBeInTheDocument();
+    expect(within(papers).queryByRole('link', { name: 'Verifică' })).not.toBeInTheDocument();
+    expect(document.querySelector('.papers-bar')).toBeNull();
+    const facts = within(sheet()).getByText('Lucrările').nextElementSibling!;
+    expect([...facts.querySelectorAll('dt')].map((dt) => `${dt.textContent} ${dt.nextElementSibling!.textContent}`)).toEqual([
+      'Corectate 1',
+      'Așteaptă corectarea 1',
+      'Nu au participat 1',
+    ]);
   });
 
   it('says that a student who sent nothing did not take part once the uploads are closed', async () => {
@@ -791,11 +806,15 @@ describe('TestPage', () => {
     expect(within(card).getAllByText(/./, { selector: 'dt' }).map((term) => term.textContent)).toEqual([
       'Au trimis',
       'Media testului',
+      // "Lucrările": where the papers are, once the uploads closed.
+      'Corectate',
+      'Nu au participat',
       'Clasa',
       'Codul',
       'Materia',
       'Început',
     ]);
+    expect(within(card).getByText('Lucrările', { selector: 'h3' })).toBeInTheDocument();
     expect(within(card).queryByRole('link')).not.toBeInTheDocument();
     expect(within(card).queryByRole('button')).not.toBeInTheDocument();
     expect(within(card).queryByText('Arhivat')).not.toBeInTheDocument();
