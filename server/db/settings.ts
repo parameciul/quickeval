@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { Settings, TestDetail } from '../../shared/api.ts';
-import { LEASE_STALE_MS, MAX_PARALLEL_AGENTS, MAX_PARALLEL_TRIES, runSummarySchema, type RobotLane, type RunSummary } from '../../shared/runner.ts';
+import { LANE_ROW, LEASE_STALE_MS, MAX_PARALLEL_AGENTS, MAX_PARALLEL_TRIES, runSummarySchema, type RobotLane, type RunSummary } from '../../shared/runner.ts';
 
 // System-wide settings (spec §7.1). v1 has one teacher, so any teacher may
 // change them.
@@ -156,9 +156,10 @@ export async function setRobotKeyHash(db: D1Database, hash: string, now: string)
 
 // The robot on the test page. startFailed: GitHub did not take the last
 // request to start the robot, no run checked in after it, and no run works now.
-export async function testPageRobot(db: D1Database, now: string): Promise<TestDetail['robot']> {
+export async function testPageRobot(db: D1Database, now: string, lane: RobotLane = 'main'): Promise<TestDetail['robot']> {
   const row = await db
-    .prepare('SELECT last_check_at, start_failed_at, run_id, heartbeat_at FROM runner_state WHERE id = 1')
+    .prepare('SELECT last_check_at, start_failed_at, run_id, heartbeat_at FROM runner_state WHERE id = ?')
+    .bind(LANE_ROW[lane])
     .first<{ last_check_at: string | null; start_failed_at: string | null; run_id: string | null; heartbeat_at: string | null }>();
   const failedAt = row?.start_failed_at ?? null;
   const lastCheckAt = row?.last_check_at ?? null;
@@ -171,6 +172,6 @@ export async function testPageRobot(db: D1Database, now: string): Promise<TestDe
 
 // The time a request to start the robot was sent, when GitHub did not take
 // it; null when GitHub took it.
-export async function saveRobotStart(db: D1Database, failedAt: string | null): Promise<void> {
-  await db.prepare('UPDATE runner_state SET start_failed_at = ? WHERE id = 1').bind(failedAt).run();
+export async function saveRobotStart(db: D1Database, failedAt: string | null, lane: RobotLane = 'main'): Promise<void> {
+  await db.prepare('UPDATE runner_state SET start_failed_at = ? WHERE id = ?').bind(failedAt, LANE_ROW[lane]).run();
 }

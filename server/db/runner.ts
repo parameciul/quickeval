@@ -5,6 +5,8 @@ import { DOCX_TYPE } from '../../shared/files.ts';
 import {
   LANE_ROW,
   LEASE_STALE_MS,
+  RESTART_AFTER_LIMIT_MS,
+  ROBOT_RESTART_MS,
   type CheckResult,
   type ClaimResult,
   type ClassResults,
@@ -103,14 +105,11 @@ function gradesVersionSql(test: string): string {
      WHERE gs.test_id = ${test}.id AND gs.status = 'graded')`;
 }
 
-// Whether the robot has work in this test, as its regular check counts it.
-// An upload left in grading by a run that died counts too: the check sends
-// it back to the queue.
-export async function testHasRobotWork(db: D1Database, testId: number, now: string): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `SELECT 1 AS found FROM tests t WHERE t.id = ? AND (
-         (${NEEDS_EXERCISE_LIST})
+// Whether the robot has work in test `t`, as its regular check counts it. An
+// upload left in grading by a run that died counts too: the check sends it
+// back to the queue. It binds one value: staleBefore(now).
+function robotWorkSql(): string {
+  return `(${NEEDS_EXERCISE_LIST})
          OR (${NEEDS_ANALYSIS})
          OR (${NEEDS_PRINT})
          OR (${NEEDS_BAREM})
@@ -122,11 +121,59 @@ export async function testHasRobotWork(db: D1Database, testId: number, now: stri
            SELECT 1 FROM submissions s
            WHERE s.test_id = t.id AND s.status = 'grading' AND t.status = 'evaluating'
              AND CASE s.variant WHEN 'ces' THEN t.ces_exercise_list_status ELSE t.exercise_list_status END IN ('ready', 'accepted')
-             AND ${NO_LIVE_RUN('s.run_id')}))`,
-    )
+             AND ${NO_LIVE_RUN('s.run_id')})`;
+}
+
+export async function testHasRobotWork(db: D1Database, testId: number, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND (${robotWorkSql()})`)
     .bind(testId, staleBefore(now))
     .first<{ found: number }>();
   return row !== null;
+}
+
+// Whose work an open page looks at before it starts a lane again: the try
+// page's own test, or the teacher's own class tests.
+export type RestartScope = { lane: 'try'; testId: number } | { lane: 'main'; teacherId: number };
+
+// Whether the page's work waits for its lane's robot.
+export async function laneHasWork(db: D1Database, scope: RestartScope, now: string): Promise<boolean> {
+  const statement =
+    scope.lane === 'try'
+      ? db.prepare(`SELECT 1 AS found FROM tests t WHERE t.id = ? AND t.quick_try = 1 AND (${robotWorkSql()}) LIMIT 1`).bind(scope.testId, staleBefore(now))
+      : db
+          .prepare(`SELECT 1 AS found FROM tests t WHERE t.teacher_id = ? AND t.quick_try = 0 AND (${robotWorkSql()}) LIMIT 1`)
+          .bind(scope.teacherId, staleBefore(now));
+  return (await statement.first<{ found: number }>()) !== null;
+}
+
+// An open page may start a lane again (restartIfStopped): one statement on the
+// lane's one row, so a page with no start due reads one row. It takes the start
+// (restart_at) when no run of the lane is alive, no run checked in and no page
+// started it in the last ROBOT_RESTART_MS, and the lane's last run, when
+// nothing came after it, did not end at a refused Claude login (that needs a
+// person to renew the token) or at the plan's limit less than
+// RESTART_AFTER_LIMIT_MS ago. The time is taken even when the page then finds
+// no work: the look at the work runs at most once in that time, and every new
+// piece of work starts the robot at once anyway.
+export async function claimRobotRestart(db: D1Database, lane: RobotLane, now: string): Promise<boolean> {
+  const at = Date.parse(now);
+  const before = (ms: number) => new Date(at - ms).toISOString();
+  const result = await db
+    .prepare(
+      `UPDATE runner_state SET restart_at = ?1
+       WHERE id = ?2
+         AND (run_id IS NULL OR heartbeat_at IS NULL OR heartbeat_at < ?3)
+         AND (last_check_at IS NULL OR last_check_at < ?4)
+         AND (restart_at IS NULL OR restart_at < ?4)
+         AND NOT (last_run_finished_at IS NOT NULL AND last_run_finished_at >= COALESCE(last_check_at, '') AND (
+           json_extract(last_run_summary, '$.stop') = 'claude_login'
+           OR (json_extract(last_run_summary, '$.stop') = 'usage_limit' AND last_run_finished_at >= ?5)))`,
+    )
+    .bind(now, LANE_ROW[lane], staleBefore(now), before(ROBOT_RESTART_MS), before(RESTART_AFTER_LIMIT_MS[lane]))
+    // No RETURNING: D1 counts one more row read for it, on every page read.
+    .all();
+  return result.meta.changes > 0;
 }
 
 // The robot's regular check, in one transaction:

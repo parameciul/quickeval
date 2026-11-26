@@ -142,7 +142,7 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
       test: toTestInfo(test),
       uploads: await listUploads(c.env.DB, test.id, test.summary.classId),
       showModel: await getShowModel(c.env.DB),
-      robot: await testPageRobot(c.env.DB, nowIso()),
+      robot: await testPageRobot(c.env.DB, nowIso(), options.robotLane ?? 'main'),
     });
   });
 
