@@ -95,9 +95,10 @@ export function cesWaitsBarem(row: UploadRow, status: TestStatus, ces: CesBar): 
 // "0 publicate · 2 nepublicate" of Rezultate: where the papers are, in the
 // order of the parts ("12 corectate · 11 se corectează"). The students who did
 // not take part are left out: Fișa testului and the table's rows name them.
-// Green "toate corectate" once every paper that took part is graded.
+// Green "toate corectate" once every paper that took part is graded and no
+// student of an open test is still to send one.
 export function papersTag(counts: PaperCounts): { text: string; all: boolean } | null {
-  if (counts.complete) return { text: t('toate corectate'), all: true };
+  if (counts.complete && !counts.parts.some(({ part }) => part === 'notYet')) return { text: t('toate corectate'), all: true };
   const words = counts.parts.flatMap(({ part, count }) => (part === 'absent' ? [] : [PAPER_TAG[part](count)]));
   return words.length === 0 ? null : { text: words.join(' · '), all: false };
 }
@@ -109,7 +110,7 @@ const PAPER_TAG: Record<Exclude<PaperPart, 'absent'>, (count: number) => string>
   waiting: (count) => t('{count} așteaptă corectarea', { count }),
   failed: (count) => countLabel(count, 'eșuată', 'eșuate'),
   uploading: (count) => t('{count} încarcă acum', { count }),
-  notYet: (count) => (count === 1 ? t('1 nu a trimis încă') : t('{count} nu au trimis încă', { count })),
+  notYet: (count) => (count === 1 ? t('1 încă nu a trimis') : t('{count} încă nu au trimis', { count })),
 };
 
 // The papers of the test page (spec 2026-11-12 §5.2), from the uploads

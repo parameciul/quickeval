@@ -308,10 +308,18 @@ describe('TestPage', () => {
     expect(screen.queryByRole('heading', { name: 'Nicio lucrare trimisă încă' })).not.toBeInTheDocument();
   });
 
+  it('shows no papers label in Corectare before the test starts', async () => {
+    renderAdmin(`${PAGE}#grading`, apiWith({ status: 'draft' }));
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    expect(papers.querySelector('.stage-section-meta')).toBeNull();
+  });
+
   it('lists the uploads of the students', async () => {
     renderAdmin(`${PAGE}#in-class`, apiWith({ status: 'open', uploadToken: FAKE_TOKEN, submittedCount: 1, studentCount: 3 }));
     const papers = await screen.findByRole('region', { name: 'Elevii' });
-    expect(within(papers).getByText('1 așteaptă corectarea · 1 încarcă acum · 1 nu a trimis încă', { selector: '.tag' })).not.toHaveClass('tag-ok');
+    expect(within(papers).getByText('1 așteaptă corectarea · 1 încarcă acum · 1 încă nu a trimis', { selector: '.tag' })).not.toHaveClass('tag-ok');
+    // "Lucrările" of Fișa testului waits for the uploads to close.
+    expect(within(sheet()).queryByText('Lucrările')).not.toBeInTheDocument();
     const pop = screen.getByRole('rowheader', { name: 'Pop Ion' }).closest('tr')!;
     expect(within(pop).getByText('Trimis')).toBeInTheDocument();
     expect(within(pop).getByText('Fără confirmare')).toBeInTheDocument();

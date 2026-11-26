@@ -182,7 +182,8 @@ describe('TestPage evaluation', () => {
     const api = evaluationApi({ evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows);
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     renderAdmin(`${PAGE}#grading`, api);
-    expect(await screen.findByText('toate corectate')).toBeInTheDocument();
+    // Marin Dan can still send: the label stays grey until the uploads close.
+    expect(await screen.findByText('2 corectate · 1 încă nu a trimis')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Închide încărcarea și pornește corectarea' })).not.toBeInTheDocument();
     expect(screen.queryByText('Bifează în tabel cel puțin o lucrare cu fișiere.')).not.toBeInTheDocument();
     const finish = screen.getByRole('button', { name: 'Marchează ca terminat' });
@@ -192,6 +193,17 @@ describe('TestPage evaluation', () => {
     expect(api.finishTest).toHaveBeenCalledWith('6E2-26T1');
     expect(await screen.findByText('Corectarea s-a terminat')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Marchează ca terminat' })).not.toBeInTheDocument();
+  });
+
+  it('labels the papers "toate corectate" in green once the uploads closed and every paper is graded', async () => {
+    const rows = [
+      fakeUpload({ studentId: 10, studentName: 'Pop Ion', submissionId: 5, status: 'graded', fileCount: 2, grade: 9 }),
+      fakeUpload({ studentId: 11, studentName: 'Stan Eva', submissionId: 6, status: 'graded', fileCount: 1, grade: 8 }),
+      fakeUpload({ studentId: 12, studentName: 'Marin Dan' }),
+    ];
+    renderAdmin(`${PAGE}#grading`, evaluationApi({ status: 'done', evaluationStartedAt: '2026-10-07T08:00:00.000Z' }, rows));
+    const papers = await screen.findByRole('region', { name: 'Elevii' });
+    expect(within(papers).getByText('toate corectate', { selector: '.tag' })).toHaveClass('tag-ok');
   });
 
   it('keeps the start button while a sent paper waits for grading', async () => {

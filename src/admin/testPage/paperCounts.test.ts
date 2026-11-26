@@ -131,12 +131,18 @@ describe('papersTag', () => {
       row({ status: 'uploading', fileCount: 1 }),
       row({ status: 'none' }),
     ], NO_CES);
-    expect(papersTag(counts)?.text).toBe('1 așteaptă corectarea · 1 încarcă acum · 4 nu au trimis încă');
+    expect(papersTag(counts)?.text).toBe('1 așteaptă corectarea · 1 încarcă acum · 4 încă nu au trimis');
   });
 
   it('is green once every paper that took part is graded', () => {
     const counts = paperCounts('done', 3, [row({ status: 'graded', fileCount: 1 }), row({ status: 'graded', fileCount: 1 }), row({ status: 'none' })], NO_CES);
     expect(papersTag(counts)).toEqual({ text: 'toate corectate', all: true });
+  });
+
+  it('stays grey while students of an open test have still to send, all sent papers graded', () => {
+    const counts = paperCounts('open', 6, [row({ status: 'graded', fileCount: 1 }), row({ status: 'graded', fileCount: 1 })], NO_CES);
+    expect(counts.complete).toBe(true);
+    expect(papersTag(counts)).toEqual({ text: '2 corectate · 4 încă nu au trimis', all: false });
   });
 
   it('has nothing to say when no student took part', () => {

@@ -689,10 +689,10 @@ function ResultsPanel({ test, uploads, onChanged }: PanelProps) {
 
 // The papers of the class: who sent or took part, the grades, and what waits,
 // under "Elevii" and its label of where the papers are, as the students' table
-// of Rezultate. Only the table of Corectare has checkboxes, while the test is
-// open.
+// of Rezultate; a draft has no label, since no student could send yet. Only
+// the table of Corectare has checkboxes, while the test is open.
 function Papers({ test, uploads, showModel, selected, onSelect, onChanged, onRobot, selectable }: PanelProps & { selectable: boolean }) {
-  const tag = papersTag(paperCounts(test.status, test.studentCount, uploads, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) }));
+  const tag = test.status === 'draft' ? null : papersTag(paperCounts(test.status, test.studentCount, uploads, { hasTest: test.ces.files.test !== null, baremActive: cesBaremActive(test) }));
   return (
     <StageSection title={t('Elevii')} meta={tag && <span className={tag.all ? 'tag tag-ok' : 'tag'}>{tag.text}</span>}>
       <UploadsTable

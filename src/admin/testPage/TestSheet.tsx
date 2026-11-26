@@ -108,7 +108,8 @@ export function TestSheet({ test, uploads }: { test: TestInfo; uploads: UploadRo
 // "Lucrările": each part of the papers that has a student (corectate, se
 // corectează, nu au participat, …) and its count, each after a dot of its
 // colour: the blue of the "Acum" box's bar for the graded ones, a paler blue
-// for the ones being graded, a hollow ring for the students who did not take
+// for the ones being graded, orange for the ones that wait for the teacher,
+// red for the failed ones, a hollow ring for the students who did not take
 // part. The dot only repeats the words.
 function SheetPapers({ test, uploads }: { test: TestInfo; uploads: UploadRow[] }) {
   const id = useId();

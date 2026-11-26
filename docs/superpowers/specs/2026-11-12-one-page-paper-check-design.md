@@ -146,7 +146,7 @@ Today the try's "Verificare" tab (`Checking`, `src/try/Graded.tsx`) is a list of
 
 ### 5.2 The progress (În clasă, Corectare, Verificare)
 
-Changed 2026-11-26: the bar over the papers table is gone. Its blue and green meant other things than the blue bar of Corectare's "Acum" box. The table is now a section "Elevii", as in Rezultate, with a short label of the parts below ("12 corectate · 11 se corectează", grey; "toate corectate", green, in place of "✓ Corectat complet"); the students who did not take part are not in the label. Once the uploads closed, Fișa testului lists the parts and their counts under "Lucrările". The counts and the parts below still hold.
+Changed 2026-11-26: the bar over the papers table is gone. Its blue and green meant other things than the blue bar of Corectare's "Acum" box. The table is now a section "Elevii", as in Rezultate, with a short label of the parts below ("12 corectate · 11 se corectează", grey; "toate corectate", green, in place of "✓ Corectat complet", only when no student of an open test is still to send); the students who did not take part are not in the label, and a draft has none. Once the uploads closed, Fișa testului lists the parts and their counts under "Lucrările". The counts and the parts below still hold.
 
 One bar, of the students of the class (`studentCount`, at least the uploads). The counts come from `uploads` (`UploadRow.status`, `fileCount`) and `test.status`; no API change.
 
