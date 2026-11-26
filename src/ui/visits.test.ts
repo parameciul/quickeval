@@ -122,7 +122,7 @@ describe('the student and Quick Try apps', () => {
       .filter(([, source]) => /useSearchParams|URLSearchParams|location\.search/.test(source))
       .map(([file]) => file);
     expect(readers).toEqual(['../try/PhonePage.tsx']);
-    expect(sources['../try/PhonePage.tsx']!.match(/params\.get\('([^']+)'\)/g)).toEqual(["params.get('here')"]);
+    expect(sources['../try/PhonePage.tsx']!.match(/params\.get\('([^']+)'\)/g)).toEqual(["params.get('here')", "params.get('parts')"]);
   });
 });
 

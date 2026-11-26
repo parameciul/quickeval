@@ -70,7 +70,7 @@ export function Prepare({ detail, token, tryApi }: { detail: TestDetail; token: 
         {pageCount === 0 && (
           <p className="hint">{t('Pozele sau PDF-ul lucrării unui elev, în ordinea paginilor. Cel mult {MAX_STUDENT_FILES} de fișiere.', { MAX_STUDENT_FILES })}</p>
         )}
-        <Pages token={token} tryApi={tryApi} />
+        <Pages token={token} tryApi={tryApi} code={test.code} filesMissing={test.files.test === null || (test.files.barem === null && !baremBusy)} />
       </section>
       <div className="try-go-bar">
         <div className="try-go-line">
@@ -405,8 +405,9 @@ function BaremChoice({ detail, left }: { detail: TestDetail; left: number }) {
 
 // The student's pages: each one sent as it is picked, in order, and each one
 // can be taken out again before the grading.
-function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
+function Pages({ token, tryApi, code, filesMissing }: { token: string; tryApi: TryApi; code: string; filesMissing: boolean }) {
   const queryClient = useQueryClient();
+  const api = useApi();
   // The phone's code: while it shows, the list is read again (usePagesWatch).
   const [phoneOpen, setPhoneOpen] = useState(false);
   // On a phone the pages come from its own camera, on the phone page.
@@ -414,6 +415,9 @@ function Pages({ token, tryApi }: { token: string; tryApi: TryApi }) {
   const [pageCount, setPageCount] = useState(0);
   const watch = usePagesWatch(phoneOpen, pageCount);
   const pages = useQuery({ queryKey: ['try', 'pages'], queryFn: () => tryApi.listPages(), refetchInterval: watch.interval });
+  // The phone's page also takes the test and the barem the try misses: while
+  // the code shows, the test is read again too, until both are there.
+  useQuery({ queryKey: ['test', code], queryFn: () => api.getTest(code), refetchInterval: filesMissing ? watch.interval : false });
   const shownCount = pages.data?.length ?? 0;
   if (shownCount !== pageCount) setPageCount(shownCount);
   const [problem, setProblem] = useState<string | null>(null);

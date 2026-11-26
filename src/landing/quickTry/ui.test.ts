@@ -93,11 +93,22 @@ function fillForm() {
   pick(/^Lucrarea elevului/, photo('p1.jpg'), photo('p2.jpg'));
 }
 
-const pagesRow = () => within(dialog()).getByLabelText(/^Lucrarea elevului/).closest<HTMLElement>('[data-try-pick]')!;
+type Part = 'test' | 'barem' | 'pages';
+const stepOf = (part: Part) => dialog().querySelector<HTMLElement>(`[data-try-part="${part}"]`)!;
+// Where a part comes from: "Fișier" or "Telefon" ("Fă poze" on a phone). The
+// barem is made from the test until "Am baremul meu" shows its two choices.
+const way = (part: Part, name: string) => within(stepOf(part)).getByRole('radio', { name }) as HTMLInputElement;
+const fileRow = (part: Part) => stepOf(part).querySelector<HTMLElement>('[data-try-from="file"]')!;
+const phoneRow = (part: Part) => stepOf(part).querySelector<HTMLElement>('[data-try-from="phone"]')!;
+const oneCode = () => dialog().querySelector<HTMLElement>('[data-try-one-code]')!;
+const robotRadio = () => stepOf('barem').querySelector<HTMLInputElement>('input[value="robot"]')!;
+const ownBarem = () => within(stepOf('barem')).getByRole('button', { name: 'Am baremul meu' });
+const fromTest = () => within(stepOf('barem')).getByRole('button', { name: 'Nu am barem: îl fac din test' });
+const allOnPaper = () => within(dialog()).getByRole('button', { name: /^Am totul pe hârtie/ });
 function sendByPhone() {
   pick(/^Testul/, pdf('test.pdf'));
   pick(/^Baremul/, pdf('barem.pdf'));
-  within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+  way('pages', 'Telefon').click();
   send();
 }
 
@@ -331,26 +342,48 @@ describe("the landing page's Quick Try", () => {
     }
   });
 
-  it('keeps the barem one choice: her file, or the one made from the test', async () => {
+  it('makes the barem from the test unless she chooses her own', async () => {
     await mount();
     button()!.click();
-    const robot = within(dialog()).getByLabelText('Nu am barem: îl generez din test') as HTMLInputElement;
-    const note = () => within(dialog()).queryByText(/Baremul se face din test în câteva minute/);
-    const baremRow = () => within(dialog()).getByLabelText(/^Baremul/).closest<HTMLElement>('[data-try-pick]')!;
-    expect(note()).not.toBeVisible();
+    expect(robotRadio().checked).toBe(true);
+    expect(within(stepOf('barem')).getByText('Baremul se face din test')).toBeVisible();
+    expect(within(stepOf('barem')).getByText('Îl găsești pe pagina încercării.')).toBeVisible();
+    // No choice shows for the barem, and no file.
+    expect(within(stepOf('barem')).queryByRole('radio')).toBeNull();
+    expect(fileRow('barem')).not.toBeVisible();
+    expect(within(stepOf('barem')).queryByRole('button', { name: 'Nu am barem: îl fac din test' })).toBeNull();
+    for (const part of ['test', 'pages'] as const) expect(way(part, 'Fișier').checked).toBe(true);
+  });
+
+  it('"Am baremul meu" shows her file or the phone, and the link back makes it from the test again', async () => {
+    await mount();
+    button()!.click();
+    ownBarem().click();
+    expect(way('barem', 'Fișier').checked).toBe(true);
+    expect(way('barem', 'Fișier')).toHaveFocus();
+    expect(fileRow('barem')).toBeVisible();
+    expect(within(stepOf('barem')).queryByText('Baremul se face din test')).not.toBeVisible();
     pick(/^Baremul/, pdf('barem.pdf'));
-    expect(baremRow()).toHaveClass('is-chosen');
-    robot.click();
-    expect(robot.checked).toBe(true);
-    expect(note()).toBeVisible();
-    // The choice empties the file she picked.
-    expect(baremRow()).not.toHaveClass('is-chosen');
-    expect(baremRow()).toHaveTextContent('Încarc baremul');
-    // A file picked after it clears the choice.
-    pick(/^Baremul/, pdf('alt-barem.pdf'));
-    expect(robot.checked).toBe(false);
-    expect(note()).not.toBeVisible();
-    expect(baremRow()).toHaveTextContent('alt-barem.pdf');
+    expect(fileRow('barem')).toHaveClass('is-chosen');
+    way('barem', 'Telefon').click();
+    expect(phoneRow('barem')).toBeVisible();
+    // The phone forgets the file she picked.
+    way('barem', 'Fișier').click();
+    expect(fileRow('barem')).not.toHaveClass('is-chosen');
+    fromTest().click();
+    expect(robotRadio().checked).toBe(true);
+    expect(ownBarem()).toHaveFocus();
+    expect(within(stepOf('barem')).getByText('Baremul se face din test')).toBeVisible();
+    expect(within(stepOf('barem')).queryByRole('radio')).toBeNull();
+  });
+
+  it('a barem file picked or dropped takes the barem to "Fișier"', async () => {
+    await mount();
+    button()!.click();
+    pick(/^Baremul/, pdf('barem.pdf'));
+    expect(way('barem', 'Fișier').checked).toBe(true);
+    expect(fileRow('barem')).toBeVisible();
+    expect(fileRow('barem')).toHaveTextContent('barem.pdf');
   });
 
   it('shows each chosen file in its row, and empties the rows once the form is sent', async () => {
@@ -371,41 +404,65 @@ describe("the landing page's Quick Try", () => {
     expect(row(/^Lucrarea elevului/)).not.toHaveClass('is-chosen');
   });
 
-  it('"Cu telefonul" marks the row as chosen and "Schimbă" puts it back', async () => {
+  it('"Telefon" shows the phone under the step and says what the one code is for; "Fișier" puts the file back', async () => {
     await mount();
     button()!.click();
-    const pages = pagesRow();
-    within(pages).getByRole('button', { name: 'Cu telefonul' }).click();
-    expect(pages).toHaveClass('is-chosen', 'is-phone');
-    expect(pages).toHaveTextContent('Faci pozele cu telefonul');
-    expect(pages).toHaveTextContent('Codul QR apare după ce apeși Trimite');
-    expect(within(pages).queryByRole('button', { name: 'Cu telefonul' })).toBeNull();
-    expect(within(pages).getByRole('button', { name: 'Schimbă' })).toHaveFocus();
-    within(pages).getByRole('button', { name: 'Schimbă' }).click();
-    expect(pages).not.toHaveClass('is-chosen');
-    expect(pages).not.toHaveClass('is-phone');
-    expect(pages).toHaveTextContent('Alege fișierele');
-    expect(within(pages).getByRole('button', { name: 'Cu telefonul' })).toBeVisible();
+    expect(oneCode()).not.toBeVisible();
+    way('pages', 'Telefon').click();
+    expect(fileRow('pages')).not.toBeVisible();
+    expect(phoneRow('pages')).toBeVisible();
+    expect(phoneRow('pages')).toHaveTextContent('Faci pozele cu telefonul, după ce apeși Trimite');
+    expect(oneCode()).toHaveTextContent('Un singur cod QR pentru lucrarea elevului. Îl scanezi după ce apeși Trimite.');
+    way('test', 'Telefon').click();
+    expect(oneCode()).toHaveTextContent('Un singur cod QR pentru testul și lucrarea elevului.');
+    way('pages', 'Fișier').click();
+    way('test', 'Fișier').click();
+    expect(fileRow('pages')).toBeVisible();
+    expect(fileRow('pages')).toHaveTextContent('Alege fișierele');
+    expect(oneCode()).not.toBeVisible();
   });
 
-  it('picking files after choosing the phone leaves the phone choice', async () => {
+  it('"Am totul pe hârtie" takes the test and the paper from the phone and keeps the barem made from the test', async () => {
     await mount();
     button()!.click();
-    const pages = pagesRow();
-    within(pages).getByRole('button', { name: 'Cu telefonul' }).click();
-    pick(/^Lucrarea elevului/, photo('p1.jpg'), photo('p2.jpg'));
-    expect(pages).not.toHaveClass('is-phone');
-    expect(pages).toHaveTextContent('2 pagini');
+    expect(allOnPaper()).toHaveTextContent('Fac poze la test și lucrare, cu telefonul');
+    fillForm();
+    fromTest().click();
+    allOnPaper().click();
+    expect(allOnPaper()).toHaveAttribute('aria-pressed', 'true');
+    for (const part of ['test', 'pages'] as const) {
+      expect(way(part, 'Telefon').checked).toBe(true);
+      expect(fileRow(part)).not.toHaveClass('is-chosen');
+    }
+    expect(robotRadio().checked).toBe(true);
+    expect(allOnPaper()).toHaveTextContent('Faci toate pozele cu telefonul, cu un singur cod QR');
+    expect(oneCode()).not.toBeVisible();
+    allOnPaper().click();
+    expect(allOnPaper()).toHaveAttribute('aria-pressed', 'false');
+    expect(way('test', 'Fișier').checked).toBe(true);
+    expect(way('pages', 'Fișier').checked).toBe(true);
+    expect(robotRadio().checked).toBe(true);
   });
 
-  it('on a phone, the button says "Fă poze" and the row says the camera opens after the send', async () => {
+  it('"Am totul pe hârtie" takes her own barem to the phone too, and back to the one made from the test', async () => {
+    await mount();
+    button()!.click();
+    ownBarem().click();
+    expect(allOnPaper()).toHaveTextContent('Fac poze la test, barem și lucrare, cu telefonul');
+    allOnPaper().click();
+    expect(way('barem', 'Telefon').checked).toBe(true);
+    expect(allOnPaper()).toHaveAttribute('aria-pressed', 'true');
+    allOnPaper().click();
+    expect(robotRadio().checked).toBe(true);
+  });
+
+  it('on a phone, the choice says "Fă poze" and the step says the camera opens after the send', async () => {
     await mount(undefined, undefined, { isPhone: () => true });
     button()!.click();
-    const pages = pagesRow();
-    expect(within(pages).queryByRole('button', { name: 'Cu telefonul' })).toBeNull();
-    within(pages).getByRole('button', { name: 'Fă poze' }).click();
-    expect(pages).toHaveTextContent('Faci pozele cu acest telefon');
-    expect(pages).toHaveTextContent('Camera se deschide după ce apeși Trimite');
+    expect(within(stepOf('pages')).queryByRole('radio', { name: 'Telefon' })).toBeNull();
+    way('pages', 'Fă poze').click();
+    expect(phoneRow('pages')).toHaveTextContent('Faci pozele cu acest telefon, după ce apeși Trimite');
+    expect(oneCode()).toHaveTextContent('După Trimite, camera se deschide pentru lucrarea elevului.');
   });
 
   it("on a phone, a send with the photos opens the try's phone page in this tab", async () => {
@@ -414,7 +471,7 @@ describe("the landing page's Quick Try", () => {
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
     pick(/^Baremul/, pdf('barem.pdf'));
-    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    way('pages', 'Fă poze').click();
     send();
     await waitFor(() => expect(go).toHaveBeenCalledWith(`/try/${TOKEN}/phone?here=1`));
     expect(api.addPage).not.toHaveBeenCalled();
@@ -431,7 +488,7 @@ describe("the landing page's Quick Try", () => {
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
     pick(/^Baremul/, pdf('barem.pdf'));
-    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    way('pages', 'Fă poze').click();
     const reads = api.getTest.mock.calls.length;
     send();
     await waitFor(() => expect(go).toHaveBeenCalled());
@@ -458,8 +515,7 @@ describe("the landing page's Quick Try", () => {
     const { api } = await mount(undefined, undefined, { isPhone: () => true, go });
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
-    within(dialog()).getByLabelText('Nu am barem: îl generez din test').click();
-    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    way('pages', 'Fă poze').click();
     send();
     await waitFor(() => expect(go).toHaveBeenCalledWith(`/try/${TOKEN}/phone?here=1`));
     expect(api.generateBarem).toHaveBeenCalledWith(TOKEN, CODE);
@@ -473,24 +529,25 @@ describe("the landing page's Quick Try", () => {
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
     pick(/^Baremul/, pdf('barem.pdf'));
-    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    way('pages', 'Fă poze').click();
     send();
     await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('Nu mă pot conecta la server.'));
     expect(within(dialog()).getByRole('link', { name: 'Deschide încercarea' })).toHaveAttribute('href', `/try/${TOKEN}`);
     expect(go).not.toHaveBeenCalled();
   });
 
-  it('shows the pages button only once the script knows the device, and changes it when the phone turns', async () => {
+  it('shows the choices only once the script knows the device, and changes them when the phone turns', async () => {
     const raw = new DOMParser().parseFromString(page, 'text/html');
-    expect(raw.querySelector('[data-try-phone-pick]')!.hasAttribute('hidden')).toBe(true);
+    for (const seg of raw.querySelectorAll('[data-try-seg]')) expect(seg.hasAttribute('hidden')).toBe(true);
+    expect(raw.querySelector('[data-try-all]')!.hasAttribute('hidden')).toBe(true);
     let phone = false;
     let turned = () => {};
     await mount(undefined, undefined, { isPhone: () => phone, watchPhone: (onChange) => (turned = onChange) });
     button()!.click();
-    expect(within(pagesRow()).getByRole('button', { name: 'Cu telefonul' })).toBeVisible();
+    expect(way('pages', 'Telefon')).toBeVisible();
     phone = true;
     turned();
-    expect(within(pagesRow()).getByRole('button', { name: 'Fă poze' })).toBeVisible();
+    expect(way('pages', 'Fă poze')).toBeVisible();
   });
 
   it('counts a phone held sideways as a phone', () => {
@@ -501,8 +558,8 @@ describe("the landing page's Quick Try", () => {
     const { api } = await mount();
     button()!.click();
     fillForm();
-    within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
-    expect((within(dialog()).getByLabelText(/^Lucrarea elevului/) as HTMLInputElement).value).toBe('');
+    way('pages', 'Telefon').click();
+    expect(fileRow('pages')).not.toHaveClass('is-chosen');
     send();
     await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledTimes(2));
     expect(api.addPage).not.toHaveBeenCalled();
@@ -558,7 +615,7 @@ describe("the landing page's Quick Try", () => {
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
     pick(/^Baremul/, pdf('barem.pdf'));
-    within(pagesRow()).getByRole('button', { name: 'Cu telefonul' }).click();
+    way('pages', 'Telefon').click();
     send();
     await waitFor(() => expect(api.uploadTestFile).toHaveBeenCalledTimes(2));
     expect(JSON.parse(localStorage.getItem(STORED_TRY_KEY)!)).toEqual({ token: TOKEN, code: CODE, madeAt: NOW.toISOString() });
@@ -598,12 +655,76 @@ describe("the landing page's Quick Try", () => {
     const { api } = await mount();
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
-    within(dialog()).getByLabelText('Nu am barem: îl generez din test').click();
     pick(/^Lucrarea elevului/, photo('p1.jpg'));
     send();
     await waitFor(() => expect(dialog().hasAttribute('open')).toBe(false));
     expect(api.generateBarem).toHaveBeenCalledWith(TOKEN, CODE);
     expect(api.start).not.toHaveBeenCalled();
+  });
+
+  it('with everything from the phone, only makes the try, and the window waits for the three parts', async () => {
+    const { api } = await mount();
+    button()!.click();
+    ownBarem().click();
+    allOnPaper().click();
+    send();
+    const phone = dialog().querySelector<HTMLElement>('[data-try-phone]')!;
+    await waitFor(() => expect(phone).toBeVisible());
+    expect(api.create).toHaveBeenCalledWith('turnstile-ok', '');
+    expect(api.uploadTestFile).not.toHaveBeenCalled();
+    expect(api.generateBarem).not.toHaveBeenCalled();
+    expect(phone).toHaveTextContent('Scanează codul cu camera telefonului și fotografiază testul, baremul și lucrarea elevului.');
+    expect(phone.querySelector('[data-try-phone-parts]')).toBeVisible();
+  });
+
+  it('with the test from the phone and no barem, asks for none at the send', async () => {
+    const { api } = await mount();
+    button()!.click();
+    way('test', 'Telefon').click();
+    pick(/^Lucrarea elevului/, photo('p1.jpg'));
+    send();
+    await waitFor(() => expect(dialog().querySelector('[data-try-phone]')).toBeVisible());
+    expect(api.generateBarem).not.toHaveBeenCalled();
+    expect(api.addPage).toHaveBeenCalledTimes(1);
+    expect(api.start).not.toHaveBeenCalled();
+  });
+
+  it("on a phone, the phone page's address names every part it takes", async () => {
+    const go = vi.fn();
+    await mount(undefined, undefined, { isPhone: () => true, go });
+    button()!.click();
+    ownBarem().click();
+    allOnPaper().click();
+    send();
+    await waitFor(() => expect(go).toHaveBeenCalledWith(`/try/${TOKEN}/phone?here=1&parts=test,marking-scheme,pages`));
+  });
+
+  it('on paper with the barem made from the test, the phone takes the test and the paper, and asks for the barem itself', async () => {
+    const { api } = await mount();
+    button()!.click();
+    allOnPaper().click();
+    send();
+    const phone = dialog().querySelector<HTMLElement>('[data-try-phone]')!;
+    await waitFor(() => expect(phone).toBeVisible());
+    expect(api.generateBarem).not.toHaveBeenCalled();
+    expect(phone).toHaveTextContent('Scanează codul cu camera telefonului și fotografiază testul și lucrarea elevului.');
+    expect(phone).toHaveTextContent('Baremul se face din test. Îl găsești pe pagina încercării.');
+    expect(within(phone).getByRole('link', { name: 'Deschide încercarea' })).toBeVisible();
+  });
+
+  it('puts every part back to its first way after a send', async () => {
+    await mount();
+    button()!.click();
+    pick(/^Testul/, pdf('test.pdf'));
+    ownBarem().click();
+    way('barem', 'Telefon').click();
+    way('pages', 'Telefon').click();
+    send();
+    await waitFor(() => expect(dialog().querySelector('[data-try-phone]')).toBeVisible());
+    // The form is hidden behind the code window now.
+    const checked = (part: Part, name: string) => (within(stepOf(part)).getByRole('radio', { name, hidden: true }) as HTMLInputElement).checked;
+    expect([checked('test', 'Fișier'), robotRadio().checked, checked('pages', 'Fișier')]).toEqual([true, true, true]);
+    expect(oneCode()).toHaveAttribute('hidden');
   });
 
   describe('photos of the test and the barem', () => {
@@ -860,7 +981,7 @@ describe('the count of a Quick Try that was sent', () => {
     button()!.click();
     pick(/^Testul/, pdf('test.pdf'));
     pick(/^Baremul/, pdf('barem.pdf'));
-    within(pagesRow()).getByRole('button', { name: 'Fă poze' }).click();
+    way('pages', 'Fă poze').click();
     send();
     await waitFor(() => expect(order).toEqual(['quick-try-sent', `/try/${TOKEN}/phone?here=1`]));
   });

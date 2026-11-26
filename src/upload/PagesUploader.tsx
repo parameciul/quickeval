@@ -81,6 +81,7 @@ export function PagesUploader({
   finishLabel,
   onFinish,
   onLost,
+  onBusy,
   shrink = shrinkPhoto,
 }: {
   pages: PagesApi;
@@ -91,10 +92,18 @@ export function PagesUploader({
   onFinish: (fileCount: number) => Promise<void> | void;
   // A 401 from any call: the upload is no longer this page's.
   onLost?: (message: string) => void;
+  // Whether pages are still waiting or on their way (a page that leaves
+  // the uploader then would stop them).
+  onBusy?: (busy: boolean) => void;
   shrink?: (file: File) => Promise<Blob>;
 }) {
   const [initialFiles] = useState(files);
   const [items, setItems] = useState<PageItem[]>(() => initialFiles.map(sentItem));
+  const busy = items.some((item) => item.state === 'waiting' || item.state === 'sending');
+  useEffect(() => {
+    onBusy?.(busy);
+  }, [busy, onBusy]);
+  useEffect(() => () => onBusy?.(false), [onBusy]);
   const [notice, setNotice] = useState<string | null>(null);
   const [viewingKey, setViewingKey] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);

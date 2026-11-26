@@ -8,13 +8,15 @@ export interface PagesWatch {
 }
 
 // Reads the try's pages while the QR window shows: at once, then every 3 s,
-// never in a hidden tab, and no more after 15 minutes with no new page (the
-// D1 read limit; only visible time counts). A failed read keeps the last
-// pages; the next tick reads again. After stop(), nothing runs and a late
-// answer is dropped.
-export function watchPages(options: {
-  read: () => Promise<SubmissionFile[]>;
-  onPages: (pages: SubmissionFile[]) => void;
+// never in a hidden tab, and no more after 15 minutes with nothing new (the
+// D1 read limit; only visible time counts). What counts as new is `progress`
+// (by default, the number of pages). A failed read keeps the last pages; the
+// next tick reads again. After stop(), nothing runs and a late answer is
+// dropped.
+export function watchPages<T = SubmissionFile[]>(options: {
+  read: () => Promise<T>;
+  onPages: (pages: T) => void;
+  progress?: (pages: T) => string | number;
   onIdle: () => void;
   isVisible: () => boolean;
   refreshMs?: number;
@@ -27,7 +29,8 @@ export function watchPages(options: {
   let timer: ReturnType<typeof setTimeout> | null = null;
   // Each start gets its own run: an answer of an older run is dropped.
   let run = 0;
-  let count = -1;
+  const progress = options.progress ?? ((pages: T) => (pages as unknown as SubmissionFile[]).length);
+  let count: string | number = -1;
   let since = now();
   // When the tab went hidden, or null while it shows. Taken from the
   // visibility events, not from the ticks: a hidden tab's timers run late.
@@ -61,8 +64,9 @@ export function watchPages(options: {
       try {
         const pages = await options.read();
         if (current !== run) return;
-        if (pages.length !== count) {
-          count = pages.length;
+        const seen = progress(pages);
+        if (seen !== count) {
+          count = seen;
           since = now();
         }
         options.onPages(pages);

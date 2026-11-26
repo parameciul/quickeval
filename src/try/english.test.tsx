@@ -83,7 +83,7 @@ describe('a Quick Try in English', () => {
   });
 
   it("names the try in English on the phone page, with no Romanian", async () => {
-    renderTry('/phone', createFakeApi({ classes: [], students: {}, tests: [tryTest()] }), createFakeTryApi());
+    renderTry('/phone', createFakeApi({ classes: [], students: {}, tests: [tryTest({ files })] }), createFakeTryApi());
     expect(await screen.findByRole('heading', { name: "The student's paper", level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Quick Try')).toBeInTheDocument();
     expect(romanianIn()).toEqual([]);
@@ -99,8 +99,18 @@ describe('a Quick Try in English', () => {
     expect(romanianIn()).toEqual([]);
   });
 
+  it('walks the test, the marking scheme and the paper on the phone page in English, with no Romanian', async () => {
+    renderTry('/phone?parts=test,marking-scheme,pages', createFakeApi({ classes: [], students: {}, tests: [tryTest()] }), createFakeTryApi());
+    expect(await screen.findByRole('heading', { name: 'The test', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'The steps' })).toHaveTextContent('The testThe marking schemeThe paper');
+    expect(screen.getByText('Photograph every page of the test, in order.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send the test and continue' })).toBeDisabled();
+    expect(romanianIn()).toEqual([]);
+    expectNoGradingWords();
+  });
+
   it("keeps a teacher's own name for the try as it is", async () => {
-    renderTry('/phone', createFakeApi({ classes: [], students: {}, tests: [tryTest({ title: 'Fractions 6B' })] }), createFakeTryApi());
+    renderTry('/phone', createFakeApi({ classes: [], students: {}, tests: [tryTest({ title: 'Fractions 6B', files })] }), createFakeTryApi());
     expect(await screen.findByText('Fractions 6B')).toBeInTheDocument();
   });
 });
