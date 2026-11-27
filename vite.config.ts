@@ -8,10 +8,10 @@ const page = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 // `npm run dev:api` serves the API (wrangler pages dev) here.
 const API_ORIGIN = 'http://127.0.0.1:8788';
 
-// The teacher app (/teacher/), the student app (/u/) and a Quick Try's page
-// (/try/) are single-page apps. In dev, every page request under them gets
+// The teacher app (/teacher/), the student app (/u/), a Quick Try's page
+// (/try/) and a teacher's phone page (/phone/) are single-page apps. In dev, every page request under them gets
 // their index.html, the same as public/_redirects does on Pages.
-const APPS = ['/teacher', '/u', '/try'];
+const APPS = ['/teacher', '/u', '/try', '/phone'];
 
 function appFallback(): Plugin {
   return {
@@ -49,6 +49,8 @@ export default defineConfig({
         teacher: page('./teacher/index.html'),
         upload: page('./u/index.html'),
         try: page('./try/index.html'),
+        // A teacher's phone page: the test and the barem from the phone.
+        phone: page('./phone/index.html'),
         // The pages that answer a search: the guide, the barem, the author
         // and the prices. Static HTML, like the landing page.
         guide: page('./guide/index.html'),

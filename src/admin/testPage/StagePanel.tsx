@@ -15,6 +15,7 @@ import { EvaluationControls } from './EvaluationControls.tsx';
 import { missingNote, missingOf, type MissingPart } from '../missing.ts';
 import { CesVariant, CesWaiting } from './CesVariant.tsx';
 import { BaremWaiting, ExerciseListBanner } from './ExerciseListBanner.tsx';
+import { PhonePhotos } from './PhoneWindow.tsx';
 import { SubjectChange } from './SubjectForm.tsx';
 import { clearPrint } from './printPdf.ts';
 import { PrintTest } from './PrintTest.tsx';
@@ -117,6 +118,7 @@ function PreparePanel({ test, uploads, robot, onChanged, onRobot }: PanelProps) 
         </div>
       )}
       <PrepareNow test={test} />
+      <PhonePhotos test={test} />
       <StageSection title={t('Fișierele')} meta={filesMeta(test)}>
         <TestFiles test={test} onChanged={onChanged} onRobot={onRobot} />
       </StageSection>

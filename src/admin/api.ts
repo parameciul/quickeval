@@ -1,3 +1,4 @@
+import type { PhoneLinkCreated } from '../../shared/testPhone.ts';
 import { langHeaders } from '../i18n/lang.ts';
 import type {
   DataVersion,
@@ -128,6 +129,8 @@ export interface AdminApi {
   saveBaremNotes(code: string, notes: string, variant?: TestVariant): Promise<BaremNotesAnswer>;
   // "Generează baremul": the robot writes a barem from the test file.
   generateBarem(code: string, variant?: TestVariant): Promise<BaremGenerateAnswer>;
+  // A phone link for the test's files (shared/testPhone.ts), valid 24 hours.
+  createPhoneLink(code: string): Promise<PhoneLinkCreated>;
   // "Am verificat baremul": names the files version the page showed.
   confirmBarem(code: string, filesVersion: number, variant?: TestVariant): Promise<BaremCheckedAnswer>;
   // "Șterge varianta CES": only while no paper went to grading with it.
@@ -417,6 +420,7 @@ export function createApiClient(options: ApiClientOptions = {}): AdminApi {
     uploadTestFile: (code, kind, file, variant) => request<TestFileAnswer>('PUT', `${variantPath(code, variant)}/files/${TEST_FILE_PATHS[kind]}`, undefined, file),
     saveBaremNotes: (code, notes, variant) => request<BaremNotesAnswer>('PUT', `${variantPath(code, variant)}/marking-scheme-notes`, { notes }),
     generateBarem: (code, variant) => request<BaremGenerateAnswer>('POST', `${variantPath(code, variant)}/marking-scheme/generate`),
+    createPhoneLink: (code) => request<PhoneLinkCreated>('POST', `/tests/${encodeURIComponent(code)}/phone-link`),
     confirmBarem: (code, filesVersion, variant) =>
       request<BaremCheckedAnswer>('POST', `${variantPath(code, variant)}/marking-scheme/checked`, { filesVersion }),
     setCesOff: (code, off) => request<CesOffAnswer>('PUT', `${test(code)}/${CES_PATH}/off`, { off }),

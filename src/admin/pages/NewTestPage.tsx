@@ -3,6 +3,8 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { displayClassName } from '../../../shared/classes.ts';
 import { formatSchoolYear } from '../../../shared/schoolYear.ts';
+import { PHONE_MEDIA } from '../../../shared/quickTry.ts';
+import { testPhonePath, type PhoneAsk } from '../../../shared/testPhone.ts';
 import { MAX_TITLE_LENGTH } from '../../../shared/tests.ts';
 import { useApi } from '../ApiContext.tsx';
 import { CesSwitch } from '../CesSwitch.tsx';
@@ -15,16 +17,25 @@ import { MissingList } from '../MissingList.tsx';
 import { FileDrop } from '../newTest/FileDrop.tsx';
 import { NewTestState } from '../newTest/NewTestState.tsx';
 import { useSchoolYear } from '../SchoolYearContext.tsx';
+import type { PhoneWindowState } from '../testPage/PhoneWindow.tsx';
 import { ActionIcon } from '../../ui/ActionIcon.tsx';
+import { useMediaQuery } from '../../ui/useMediaQuery.ts';
+import { currentLang } from '../../i18n/lang.ts';
 import { t } from '../../i18n/t.ts';
 
-// Where the barem comes from: a file now, the robot from the test, or later.
-type BaremChoice = 'upload' | 'generate' | 'later';
+// Where the test comes from: a file now, or photos with the phone once the
+// test is made.
+type TestChoice = 'upload' | 'phone';
+// Where the barem comes from: a file now, the phone, the robot from the test, or later.
+type BaremChoice = 'upload' | 'phone' | 'generate' | 'later';
 
 // /tests/new (redesign spec §11.7): one sheet of three numbered steps, drawn
 // with the controls of the Quick Try form: the class and the title side by
-// side, the test as a file tile, and the barem's source as a switch (Fișier,
-// Din test, Mai târziu) over its tile; what happens next is on the side.
+// side, the test's source as a switch (Fișier, Telefon) and the barem's
+// (Fișier, Telefon, Din test, Mai târziu), each over its tile; what happens
+// next is on the side. The parts from the phone are photographed once the test
+// is made: the test page opens the QR code of its phone link (on a phone, the
+// phone page itself opens).
 // ?class=<id> picks the class (the class page links here). The test and the
 // barem can come now or later; the test page holds them too. A class with a CES
 // student shows them and the CES switch, on by default (spec: CES switch); on,
@@ -40,6 +51,10 @@ export function NewTestPage() {
   const [classId, setClassId] = useState(params.get('class') ?? '');
   const [title, setTitle] = useState('');
   const [testFile, setTestFile] = useState<File | null>(null);
+  const [testFrom, setTestFrom] = useState<TestChoice>('upload');
+  const [cesTestFrom, setCesTestFrom] = useState<TestChoice>('upload');
+  // A phone in the hand takes the photos itself: "Fă poze", and no QR code.
+  const onPhone = useMediaQuery(PHONE_MEDIA);
   const [baremFile, setBaremFile] = useState<File | null>(null);
   const [barem, setBarem] = useState<BaremChoice>('upload');
   const [newClass, setNewClass] = useState(false);
@@ -67,7 +82,7 @@ export function NewTestPage() {
           return false;
         }
       };
-      const testSent = testFile !== null && (await send(testFile, 'test'));
+      const testSent = testFrom === 'upload' && testFile !== null && (await send(testFile, 'test'));
       if (barem === 'upload' && baremFile) await send(baremFile, 'barem');
       // The robot writes the barem from the test file, so only once it is sent.
       if (barem === 'generate' && testSent) {
@@ -78,7 +93,7 @@ export function NewTestPage() {
         }
       }
       if (withCes) {
-        const cesTestSent = cesTestFile !== null && (await send(cesTestFile, 'test', 'ces'));
+        const cesTestSent = cesTestFrom === 'upload' && cesTestFile !== null && (await send(cesTestFile, 'test', 'ces'));
         if (cesBarem === 'upload' && cesBaremFile) await send(cesBaremFile, 'barem', 'ces');
         if (cesBarem === 'generate' && cesTestSent) {
           try {
@@ -88,11 +103,28 @@ export function NewTestPage() {
           }
         }
       }
-      return { code, notice };
+      // The parts from the phone: one link for all of them. Without it the
+      // test page says so, and its Pregătire makes another.
+      let phone: PhoneWindowState | null = null;
+      if (phoneAsk.parts.length > 0) {
+        try {
+          const link = await api.createPhoneLink(code);
+          phone = { token: link.token, ask: phoneAsk };
+        } catch (err) {
+          notice ??= t('Testul a fost creat, dar codul pentru telefon nu s-a putut face: {errorText}', { errorText: errorText(err) });
+        }
+      }
+      return { code, notice, phone };
     },
-    onSuccess: async ({ code, notice }) => {
+    onSuccess: async ({ code, notice, phone }) => {
       await queryClient.invalidateQueries({ queryKey: ['tests'] });
-      navigate(`/tests/${code}`, { state: notice ? { notice } : null });
+      // On a phone, the photos are taken here: the phone page opens in this tab.
+      if (phone && onPhone) {
+        window.location.assign(testPhonePath(phone.token, phone.ask, true, currentLang()));
+        return;
+      }
+      if (phone) navigate(`/tests/${code}#prepare`, { state: { notice, phone } });
+      else navigate(`/tests/${code}`, { state: notice ? { notice } : null });
     },
   });
 
@@ -104,11 +136,18 @@ export function NewTestPage() {
   // take a while to become a PDF.
   const pickTest = (file: File | null) => {
     setTestFile(file);
-    if (file === null) setBarem((current) => (current === 'generate' ? 'later' : current));
+    if (file === null && testFrom === 'upload') setBarem((current) => (current === 'generate' ? 'later' : current));
   };
   const pickCesTest = (file: File | null) => {
     setCesTestFile(file);
-    if (file === null) setCesBarem((current) => (current === 'generate' ? 'later' : current));
+    if (file === null && cesTestFrom === 'upload') setCesBarem((current) => (current === 'generate' ? 'later' : current));
+  };
+  // The test back to a file it does not have: a barem made from it can no
+  // longer be.
+  const chooseTestFrom = (ces: boolean, value: TestChoice) => {
+    (ces ? setCesTestFrom : setTestFrom)(value);
+    const noFile = (ces ? cesTestFile : testFile) === null;
+    if (value === 'upload' && noFile) (ces ? setCesBarem : setBarem)((current) => (current === 'generate' ? 'later' : current));
   };
   // The CES tiles are drawn while the class has CES students, hidden while
   // the switch is off, so turning it off and on keeps their files on show.
@@ -134,45 +173,61 @@ export function NewTestPage() {
       return next;
     });
 
-  // What the new test would still miss, as the test page will say it.
+  // The test of each variant is here or comes from the phone: either way a
+  // barem can be made from it.
+  const hasTest = testFrom === 'phone' || testFile !== null;
+  const hasCesTest = cesTestFrom === 'phone' || cesTestFile !== null;
+  // The parts from the phone, and the barems to ask for once their test came.
+  const phoneAsk: PhoneAsk = {
+    parts: [
+      ...(testFrom === 'phone' ? (['test'] as const) : []),
+      ...(barem === 'phone' ? (['barem'] as const) : []),
+      ...(withCes && cesTestFrom === 'phone' ? (['cesTest'] as const) : []),
+      ...(withCes && cesBarem === 'phone' ? (['cesBarem'] as const) : []),
+    ],
+    fromTest: [
+      ...(testFrom === 'phone' && barem === 'generate' ? (['barem'] as const) : []),
+      ...(withCes && cesTestFrom === 'phone' && cesBarem === 'generate' ? (['cesBarem'] as const) : []),
+    ],
+  };
+
+  // What the new test would still miss, as the test page will say it. A part
+  // from the phone is not missing: it is chosen, and comes once the test is made.
   const missing = missingParts({
-    testFile: testFile !== null,
-    baremFile: barem === 'upload' && baremFile !== null,
-    baremRequest: barem === 'generate' && testFile !== null ? 'requested' : 'none',
+    testFile: hasTest,
+    baremFile: (barem === 'upload' && baremFile !== null) || barem === 'phone',
+    baremRequest: barem === 'generate' && hasTest ? 'requested' : 'none',
     ces: {
       wanted: withCes,
-      testFile: cesTestFile !== null,
-      baremFile: cesBarem === 'upload' && cesBaremFile !== null,
-      baremRequest: cesBarem === 'generate' && cesTestFile !== null ? 'requested' : 'none',
+      testFile: hasCesTest,
+      baremFile: (cesBarem === 'upload' && cesBaremFile !== null) || cesBarem === 'phone',
+      baremRequest: cesBarem === 'generate' && hasCesTest ? 'requested' : 'none',
     },
   });
 
   // The barem parts the robot will write once the test is made: not here yet, not missing.
   const generating: MissingPart[] = [
-    ...(barem === 'generate' && testFile !== null ? (['barem'] as const) : []),
-    ...(withCes && cesBarem === 'generate' && cesTestFile !== null ? (['cesBarem'] as const) : []),
+    ...(barem === 'generate' && hasTest ? (['barem'] as const) : []),
+    ...(withCes && cesBarem === 'generate' && hasCesTest ? (['cesBarem'] as const) : []),
   ];
 
   // Where each step stands, for the mark on it: the class and the title come
   // first; the files can wait, so an empty step says so instead of blocking.
-  const baremThere = !missing.includes('barem') && !(withCes && missing.includes('cesBarem'));
+  // A step is done once each of its parts has its file or its source: a barem
+  // the robot makes from the test counts, one left for later does not.
   const stepDone = [
     selected !== '' && title.trim() !== '',
     !missing.includes('test') && !(withCes && missing.includes('cesTest')),
-    baremThere && generating.length === 0,
+    !missing.includes('barem') && !(withCes && missing.includes('cesBarem')),
   ];
   // Where each step stands, said once per step: a screen reader reads it after
-  // the heading. Only the test's "Poți și mai târziu" is shown; the number (a
-  // tick once done) and the tiles show the rest.
+  // the heading. The files' steps show it beside the heading ("Gata" in green,
+  // or the test's "Poți și mai târziu"); the class's step shows only its tick.
   const stepMark = (index: number) => {
-    const word = stepDone[index]
-      ? t('Gata')
-      : index === 0
-        ? t('De completat')
-        : index === 2 && baremThere
-          ? t('Se va genera')
-          : t('Poți și mai târziu');
-    return <span className={index === 1 && !stepDone[index] ? 'step-state' : 'step-state sr-only'}>{word}</span>;
+    const done = stepDone[index] ?? false;
+    const word = done ? t('Gata') : index === 0 ? t('De completat') : t('Poți și mai târziu');
+    const shown = index === 1 || (index === 2 && done);
+    return <span className={!shown ? 'step-state sr-only' : done ? 'step-state is-done' : 'step-state'}>{word}</span>;
   };
   const stepClass = (index: number) => (stepDone[index] ? 'step is-done' : 'step');
   const stepNumber = (index: number) => (
@@ -186,23 +241,82 @@ export function NewTestPage() {
     create.mutate();
   };
 
-  // The barem's source, as a switch of three: a file, the robot from the test
-  // (only once the test file is there), or later.
+  const testTile = { title: t('Alege testul'), hint: t('Cel pe care îl tipărești. PDF, Word sau poze. Îl poți trage aici.') };
+  const cesTestTile = { title: t('Alege testul CES'), hint: t('Tipărit cu același cod QR. PDF, Word sau poze.') };
+
+  // On a phone the photos are taken on it: "Fă poze" in place of "Telefon".
+  const phoneWord = onPhone ? t('Fă poze') : t('Telefon');
+  // The tile of a part from the phone: blue, chosen, photographed once the test is made.
+  const phoneTile = (title: string, titleHere: string, line?: string) => (
+    <InfoTile
+      kind="plan"
+      icon={PHONE}
+      title={onPhone ? titleHere : title}
+      line={line ?? (onPhone ? t('Pagină cu pagină, în ordine.') : t('Un singur cod QR pentru toate pozele.'))}
+    />
+  );
+
+  // The test's source, as a switch of two: a file, or the phone.
+  const testOf = (ces: boolean) => {
+    const current = ces ? cesTestFrom : testFrom;
+    const labels: [TestChoice, string, ReactNode][] = [
+      ['upload', t('Fișier'), UPLOAD],
+      ['phone', phoneWord, PHONE],
+    ];
+    const toggle = (
+      <fieldset className="seg">
+        <legend className="sr-only">{ces ? t('Testul CES') : withCes ? t('Testul clasei') : t('Testul')}</legend>
+        {labels.map(([value, label, icon]) => (
+          <label key={value}>
+            <input type="radio" name={ces ? 'ces-test-from' : 'test-from'} value={value} checked={current === value} onChange={() => chooseTestFrom(ces, value)} />
+            <span>
+              {icon}
+              {label}
+            </span>
+          </label>
+        ))}
+      </fieldset>
+    );
+    const body = (
+      <>
+        {/* Kept while the phone is chosen, so the file comes back with "Fișier". */}
+        <div hidden={current !== 'upload'}>
+          {ces ? (
+            <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} onBusy={busyOf('cesTest')} tile={cesTestTile} />
+          ) : (
+            <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} tile={testTile} />
+          )}
+        </div>
+        {current === 'phone' &&
+          (ces
+            ? phoneTile(t('Faci pozele testului CES cu telefonul, după ce creezi testul'), t('Faci pozele testului CES după ce creezi testul'))
+            : phoneTile(t('Faci pozele testului cu telefonul, după ce creezi testul'), t('Faci pozele testului după ce creezi testul')))}
+      </>
+    );
+    return { toggle, body };
+  };
+  const classTest = testOf(false);
+  const cesTestParts = testOf(true);
+
+  // The barem's source, as a switch of four: a file, the phone, the robot
+  // from the test (only once the test is chosen, as a file or from the
+  // phone), or later.
   const baremOf = (group: 'barem' | 'ces-barem') => {
     const ces = group === 'ces-barem';
     const current = ces ? cesBarem : barem;
     const set = ces ? setCesBarem : setBarem;
-    const noTest = (ces ? cesTestFile : testFile) === null;
+    const noTest = !(ces ? hasCesTest : hasTest);
     const noteId = `${group}-from-test`;
-    const labels: [BaremChoice, string][] = [
-      ['upload', t('Fișier')],
-      ['generate', t('Din test')],
-      ['later', t('Mai târziu')],
+    const labels: [BaremChoice, string, ReactNode][] = [
+      ['upload', t('Fișier'), UPLOAD],
+      ['phone', phoneWord, PHONE],
+      ['generate', t('Din test'), FROM_TEST],
+      ['later', t('Mai târziu'), LATER],
     ];
     const toggle = (
       <fieldset className="seg">
         <legend className="sr-only">{ces ? t('Baremul CES') : withCes ? t('Baremul clasei') : t('Baremul')}</legend>
-        {labels.map(([value, label]) => (
+        {labels.map(([value, label, icon]) => (
           <label key={value}>
             <input
               type="radio"
@@ -213,16 +327,24 @@ export function NewTestPage() {
               aria-describedby={value === 'generate' && noTest ? noteId : undefined}
               onChange={() => set(value)}
             />
-            <span>{label}</span>
+            <span>
+              {icon}
+              {label}
+            </span>
           </label>
         ))}
       </fieldset>
     );
+    // Why "Din test" is off, for a screen reader only: nothing stands between
+    // the switch and its tile.
     const note = noTest && (
-      <p className="seg-note" id={noteId}>
+      <p className="sr-only" id={noteId}>
         {ces ? t('„Din test” se poate după ce alegi testul CES.') : t('„Din test” se poate după ce alegi testul.')}
       </p>
     );
+    // The CES barem is out of 90 points with 10 given: said in its tile, for a
+    // file she brings now or later (the robot's makes it so by itself).
+    const cesPoints = t('Doar pentru corectare: 90 de puncte și 10 din oficiu.');
     const body = (
       <>
         {/* Kept while another choice is made, so the file comes back with it. */}
@@ -234,26 +356,34 @@ export function NewTestPage() {
             onBusy={busyOf(ces ? 'cesBarem' : 'barem')}
             tile={{
               title: ces ? t('Alege baremul CES') : t('Alege baremul'),
-              hint: ces ? t('PDF, Word sau poze.') : t('După el se dă punctajul. PDF, Word sau poze.'),
+              hint: ces ? `${cesPoints} ${t('PDF, Word sau poze.')}` : t('După el se dă punctajul. PDF, Word sau poze.'),
             }}
           />
         </div>
+        {current === 'phone' &&
+          (ces
+            ? phoneTile(t('Faci pozele baremului CES cu telefonul, după ce creezi testul'), t('Faci pozele baremului CES după ce creezi testul'), cesPoints)
+            : phoneTile(t('Faci pozele baremului cu telefonul, după ce creezi testul'), t('Faci pozele baremului după ce creezi testul')))}
         {current === 'generate' && (
           <InfoTile
+            kind="plan"
             icon={FROM_TEST}
             title={ces ? t('Baremul CES se face din testul CES') : t('Baremul se face din test')}
             line={
-              ces
-                ? t('Pornește de la baremul clasei. În câteva minute, apoi îl verifici înainte de corectare.')
-                : t('În câteva minute. Îl verifici și îl ajustezi înainte de corectare.')
+              (ces ? cesTestFrom : testFrom) === 'phone'
+                ? t('După ce ajung pozele testului. În câteva minute, apoi îl verifici înainte de corectare.')
+                : ces
+                  ? t('Pornește de la baremul clasei. În câteva minute, apoi îl verifici înainte de corectare.')
+                  : t('În câteva minute. Îl verifici și îl ajustezi înainte de corectare.')
             }
           />
         )}
         {current === 'later' && (
           <InfoTile
+            kind="later"
             icon={LATER}
             title={t('Îl adaugi din pagina testului, la Pregătire')}
-            line={ces ? t('Lucrările CES nu se corectează fără el.') : t('Corectarea nu începe fără barem.')}
+            line={ces ? `${t('Lucrările CES nu se corectează fără el.')} ${cesPoints}` : t('Corectarea nu începe fără barem.')}
           />
         )}
       </>
@@ -262,9 +392,6 @@ export function NewTestPage() {
   };
   const classBarem = baremOf('barem');
   const cesBaremParts = baremOf('ces-barem');
-
-  const testTile = { title: t('Alege testul'), hint: t('Cel pe care îl tipărești. PDF, Word sau poze. Îl poți trage aici.') };
-  const cesTestTile = { title: t('Alege testul CES'), hint: t('Tipărit cu același cod QR. PDF, Word sau poze.') };
 
   return (
     <section>
@@ -340,22 +467,31 @@ export function NewTestPage() {
                     {t('Testul')}
                   </h2>
                   {stepMark(1)}
+                  {!withCes && classTest.toggle}
                 </div>
                 {/* The class part keeps its place whether the CES part shows or not,
                     so turning CES on or off never redraws its file tile and loses
                     the file shown in it; the CES part stays drawn, hidden, while
                     the switch is off, for the same reason. */}
                 <div className="step-part">
-                  {withCes && <h3>{t('Testul clasei')}</h3>}
-                  <FileDrop id="new-test-file" name={t('Fișierul testului')} onPick={pickTest} onBusy={busyOf('test')} tile={testTile} />
+                  {withCes && (
+                    <div className="step-part-head">
+                      <h3>{t('Testul clasei')}</h3>
+                      {classTest.toggle}
+                    </div>
+                  )}
+                  {classTest.body}
                 </div>
                 {hasCes && (
                   <div className="step-part" hidden={!cesOn}>
-                    <h3>
-                      {t('Testul CES')}
-                      <CesTag />
-                    </h3>
-                    <FileDrop id="new-ces-test-file" name={t('Fișierul testului CES')} onPick={pickCesTest} onBusy={busyOf('cesTest')} tile={cesTestTile} />
+                    <div className="step-part-head">
+                      <h3>
+                        {t('Testul CES')}
+                        <CesTag />
+                      </h3>
+                      {cesTestParts.toggle}
+                    </div>
+                    {cesTestParts.body}
                   </div>
                 )}
               </li>
@@ -387,7 +523,6 @@ export function NewTestPage() {
                       </h3>
                       {cesBaremParts.toggle}
                     </div>
-                    <p className="step-part-note">{t('Doar pentru corectare: 90 de puncte și 10 din oficiu.')}</p>
                     {cesBaremParts.note}
                     {cesBaremParts.body}
                   </div>
@@ -406,7 +541,14 @@ export function NewTestPage() {
           </form>
 
           <aside className="new-test-side">
-            <NewTestState hasClass={selected !== ''} hasTitle={title.trim() !== ''} missing={missing} generating={generating} wantsCes={withCes} />
+            <NewTestState
+              hasClass={selected !== ''}
+              hasTitle={title.trim() !== ''}
+              missing={missing}
+              generating={generating}
+              phone={phoneAsk.parts}
+              wantsCes={withCes}
+            />
             <section className="class-card new-test-next" aria-labelledby="new-test-next">
               <div className="class-card-head">
                 <h2 id="new-test-next">{t('După ce creezi testul')}</h2>
@@ -454,11 +596,12 @@ export function NewTestPage() {
   );
 }
 
-// A grey tile for a barem the teacher does not pick here: the robot makes it,
-// or it comes later. Drawn like the file tiles, with nothing to click.
-function InfoTile({ icon, title, line }: { icon: ReactNode; title: string; line: string }) {
+// The tile of a barem the teacher does not pick here, drawn like the file
+// tiles, with nothing to click: blue once its source is chosen (the robot makes
+// it from the test), an empty dashed tile while it is left for later.
+function InfoTile({ kind, icon, title, line }: { kind: 'plan' | 'later'; icon: ReactNode; title: string; line: string }) {
   return (
-    <div className="pick-tile is-info">
+    <div className={`pick-tile is-info is-${kind}`}>
       <span className="pick-tile-icon">{icon}</span>
       <span className="pick-tile-text">
         <b>{title}</b>
@@ -471,6 +614,18 @@ function InfoTile({ icon, title, line }: { icon: ReactNode; title: string; line:
 const TICK = (
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" focusable="false">
     <path d="M4.5 10.5l3.5 3.5 7.5-8" />
+  </svg>
+);
+const PHONE = (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <rect x="5.5" y="1.75" width="9" height="16.5" rx="1.5" />
+    <path d="M9 15.5h2" />
+  </svg>
+);
+const UPLOAD = (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" />
+    <path d="M3.5 13v3.25h13V13" />
   </svg>
 );
 const FROM_TEST = (

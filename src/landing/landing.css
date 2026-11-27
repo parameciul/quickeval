@@ -529,9 +529,11 @@ label.tile.is-chosen { border-color: var(--ok-fg); background: var(--ok-bg); }
 .seg label:hover > span { color: var(--text); }
 .seg input:checked + span { background: var(--surface); color: var(--text); }
 .seg input:focus-visible + span { outline: 3px solid var(--orange-mark); outline-offset: 1px; }
-.tile-sunk { border-color: transparent; background: var(--sunk); cursor: default; }
-.tile-sunk:hover { border-color: transparent; background: var(--sunk); }
-.tile-sunk .tile-text b { overflow-wrap: normal; }
+/* A part whose source is chosen and whose file comes later (from the phone,
+   or the barem made from the test): blue, as on the teacher's Test nou; green
+   is for a file that is here. */
+.tile-plan, .tile-plan:hover { border-color: var(--blue); background: var(--blue-tint); cursor: default; }
+.tile-plan .tile-text b { overflow-wrap: normal; }
 /* The barem made from the test, the default; her own barem behind a link
    ("Am baremul meu"), and a link back. */
 .tile-auto { grid-template-columns: 22px 1fr auto; }

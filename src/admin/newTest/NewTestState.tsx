@@ -9,6 +9,7 @@ export function NewTestState({
   hasTitle,
   missing,
   generating,
+  phone,
   wantsCes,
 }: {
   hasClass: boolean;
@@ -17,17 +18,21 @@ export function NewTestState({
   // Parts that are not missing because the robot will write them once the test
   // is made: neither here nor missing, so they do not count as done.
   generating: MissingPart[];
+  // Parts chosen from the phone: photographed once the test is made, so
+  // neither here nor missing.
+  phone: MissingPart[];
   wantsCes: boolean;
 }) {
   const parts: MissingPart[] = wantsCes ? ['test', 'barem', 'cesTest', 'cesBarem'] : ['test', 'barem'];
   const items = [
-    { key: 'class', label: t('Clasa'), done: hasClass, todo: t('de ales'), doneWord: t('gata'), later: false },
-    { key: 'title', label: t('Titlul'), done: hasTitle, todo: t('de scris'), doneWord: t('gata'), later: false },
+    { key: 'class', label: t('Clasa'), done: hasClass, todo: t('de ales'), doneWord: t('gata'), later: false, phone: false },
+    { key: 'title', label: t('Titlul'), done: hasTitle, todo: t('de scris'), doneWord: t('gata'), later: false, phone: false },
     ...parts.map((part) => ({
       key: part,
       label: `${missingName(part)[0]?.toUpperCase()}${missingName(part).slice(1)}`,
-      done: !missing.includes(part) && !generating.includes(part),
+      done: !missing.includes(part) && !generating.includes(part) && !phone.includes(part),
       later: generating.includes(part),
+      phone: phone.includes(part),
       todo: t('lipsește'),
       doneWord: t('gata'),
     })),
@@ -42,7 +47,7 @@ export function NewTestState({
         {t('{done} din {length} făcute', { done, length: items.length })}</p>
       <ul>
         {items.map((item) => (
-          <li key={item.key} className={item.done ? 'is-done' : item.later ? 'is-later' : 'is-todo'}>
+          <li key={item.key} className={item.done ? 'is-done' : item.phone ? 'is-phone' : item.later ? 'is-later' : 'is-todo'}>
             <span className="state-mark" aria-hidden="true">
               {item.done && (
                 <svg
@@ -59,7 +64,7 @@ export function NewTestState({
               )}
             </span>
             <span>{item.label}</span>
-            <span className="state-word">{item.done ? item.doneWord : item.later ? t('se va genera') : item.todo}</span>
+            <span className="state-word">{item.done ? item.doneWord : item.phone ? t('de pe telefon') : item.later ? t('se va genera') : item.todo}</span>
           </li>
         ))}
       </ul>

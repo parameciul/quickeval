@@ -25,6 +25,8 @@ import {
 } from '../../shared/api.ts';
 import { PDF_TYPE, TEACHER_FILE_TYPES, TEACHER_WRONG_TYPE, testFileKey, testFileKindOfPath, type TestFileKind } from '../../shared/files.ts';
 import { QUICK_TRY_FILE_CHANGES } from '../../shared/quickTry.ts';
+import { PHONE_LINK_HOURS, PHONE_TOKEN_LENGTH, type PhoneLinkCreated } from '../../shared/testPhone.ts';
+import { createPhoneLink } from '../db/phoneLinks.ts';
 import { unsupportedMessage } from '../../shared/subjects.ts';
 import { MAX_SCHEDULE_DAYS } from '../../shared/tests.ts';
 import { acceptExerciseList,
@@ -78,7 +80,7 @@ import { cesVariantRoutes } from './cesVariant.ts';
 import type { AppEnv, AppOptions } from '../env.ts';
 import { ApiError, baremDayLimit, demoLimit, isUniqueViolation, notFound } from '../errors.ts';
 import { nowIso, parseSchoolYear, parseTestCode, readJson } from '../http.ts';
-import { newUploadToken } from '../secrets.ts';
+import { newUploadToken, randomBase32, sha256Hex } from '../secrets.ts';
 import { deleteFilesQuietly, fileResponse, readUpload } from '../uploads.ts';
 
 function parseFileKind(raw: string | undefined): TestFileKind {
@@ -497,6 +499,21 @@ export function testRoutes(options: AppOptions = {}): Hono<AppEnv> {
     const analysis = await requestAnalysis(c.env.DB, c.var.teacher.id, test.id, nowIso());
     if (!analysis) throw new ApiError(409, 'busy', 'Testul s-a schimbat între timp. Încearcă din nou.');
     return c.json({ analysis, robot: await startRobot(c.env) } satisfies AnalysisAnswer);
+  });
+
+  // A phone link for this test's files (shared/testPhone.ts): the phone that
+  // scans its code sends the test and the barem without a login. Only the
+  // token's hash is kept; the page shows the token once, in its QR code.
+  routes.post('/:code/phone-link', async (c) => {
+    const teacherId = c.var.teacher.id;
+    const test = await requireTest(c.env.DB, teacherId, parseTestCode(c.req.param('code')));
+    const token = randomBase32(PHONE_TOKEN_LENGTH);
+    const now = nowIso();
+    const expiresAt = new Date(Date.parse(now) + PHONE_LINK_HOURS * 3_600_000).toISOString();
+    if (!(await createPhoneLink(c.env.DB, teacherId, test.id, await sha256Hex(token), now, expiresAt))) {
+      throw new ApiError(409, 'phone_link', 'Pentru acest test nu poți trimite poze cu telefonul.');
+    }
+    return c.json({ token, expiresAt } satisfies PhoneLinkCreated, 201);
   });
 
   // Upload or replace the test or the barem: PDF or Word, at most 25 MB. A new

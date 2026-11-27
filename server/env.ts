@@ -1,5 +1,6 @@
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import type { Teacher, Viewing } from '../shared/api.ts';
+import type { PhoneLink } from './db/phoneLinks.ts';
 import type { QuickTryRow } from './db/quickTry.ts';
 import type { EmailMessage } from './email.ts';
 import type { PaidFeatures } from '../shared/payments.ts';
@@ -57,7 +58,8 @@ export interface ViewContext {
 export interface AppEnv {
   Bindings: Env;
   // quickTry: the try of a /api/try/<token> request (routes/quickTry.ts).
+  // phoneLink: the link of a /api/phone/<token> request (routes/phone.ts).
   // viewing: set by teacherAuth() only (null with no view); routers that do not
   // run it leave it unset, so readers use c.var.viewing?.
-  Variables: { teacher: Teacher; viewing: ViewContext | null; quickTry: QuickTryRow };
+  Variables: { teacher: Teacher; viewing: ViewContext | null; quickTry: QuickTryRow; phoneLink: PhoneLink };
 }
