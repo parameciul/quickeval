@@ -15,6 +15,9 @@ import { useTeacherPick } from '../../ui/useTeacherPick.ts';
 // is shown, a file
 // dropped beside it does nothing, so a near miss does not open the file in the
 // tab and lose the form.
+// With `tile`, it is drawn as a tile of one line (the look of the Quick Try
+// form): `tile.title` and `tile.hint` while empty; once a file is chosen, its
+// name, how many photos made it, and "Alege alt fișier", in green.
 export function FileDrop({
   id,
   name,
@@ -22,6 +25,7 @@ export function FileDrop({
   disabled = false,
   makePdf,
   onBusy,
+  tile,
 }: {
   id: string;
   name: string;
@@ -30,9 +34,10 @@ export function FileDrop({
   makePdf?: MakePdf;
   // Told when photos start and stop being made into a PDF, so a form can wait.
   onBusy?: (busy: boolean) => void;
+  tile?: { title: string; hint: string };
 }) {
   const [problem, setProblem] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<{ file: File; pictures: number } | null>(null);
   const [over, setOver] = useState(false);
   const problemId = `${id}-problem`;
   const { take: takeFiles, busy } = useTeacherPick(makePdf);
@@ -57,13 +62,14 @@ export function FileDrop({
     };
   }, []);
 
+  const tileClass = ['pick-tile', chosen && 'is-chosen', over && 'is-over', problem && 'is-problem'].filter(Boolean).join(' ');
   const take = (picked: readonly File[]) => {
     setProblem(null);
     takeFiles(picked, (outcome) => {
       const found = 'problem' in outcome ? outcome.problem : null;
       const file = 'file' in outcome ? outcome.file : null;
       setProblem(found);
-      setChosen(file ? chosenName(file, 'pictures' in outcome ? outcome.pictures : 0) : null);
+      setChosen(file ? { file, pictures: 'pictures' in outcome ? outcome.pictures : 0 } : null);
       onPick(file);
     });
   };
@@ -98,21 +104,36 @@ export function FileDrop({
       />
       <label
         htmlFor={id}
-        className={over ? 'file-drop is-over' : 'file-drop'}
+        className={tile ? tileClass : over ? 'file-drop is-over' : 'file-drop'}
         onDragOver={onDragOver}
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
       >
-        <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-          <path d="M10 13V3.5M6.5 7 10 3.5 13.5 7" />
-          <path d="M3.5 13v3.5h13V13" />
-        </svg>
-        <span>
-          <span className="sr-only">{name}: </span>
-          <b>{chosen ? t('Alege alt fișier') : t('Alege fișierul')}</b>{' '}{t('sau trage-l aici')}
-        </span>
-        <span className="file-drop-types">{t('PDF, Word sau poze')}</span>
-        {chosen && <span className="file-drop-name">{chosen}</span>}
+        {tile ? (
+          <>
+            <span className="pick-tile-icon">{chosen ? DONE_ICON : UPLOAD_ICON}</span>
+            <span className="pick-tile-text">
+              {/* The spaces keep the words apart in the name a screen reader reads. */}
+              <span className="sr-only">{name}:</span>{' '}
+              <b>{chosen ? chosen.file.name : tile.title}</b>{' '}
+              {chosen ? chosen.pictures > 0 && <small>{t('Din {pictures}', { pictures: tc(chosen.pictures, 'poză', 'poze') })}</small> : <small>{tile.hint}</small>}
+            </span>{' '}
+            {chosen && <span className="pick-tile-go">{t('Alege alt fișier')}</span>}
+          </>
+        ) : (
+          <>
+            <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <path d="M10 13V3.5M6.5 7 10 3.5 13.5 7" />
+              <path d="M3.5 13v3.5h13V13" />
+            </svg>
+            <span>
+              <span className="sr-only">{name}: </span>
+              <b>{chosen ? t('Alege alt fișier') : t('Alege fișierul')}</b>{' '}{t('sau trage-l aici')}
+            </span>
+            <span className="file-drop-types">{t('PDF, Word sau poze')}</span>
+            {chosen && <span className="file-drop-name">{chosenName(chosen.file, chosen.pictures)}</span>}
+          </>
+        )}
       </label>
       {busy && (
         <p className="hint" role="status">
@@ -127,6 +148,18 @@ export function FileDrop({
     </div>
   );
 }
+
+const UPLOAD_ICON = (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M10 13V4M6.5 7.5L10 4l3.5 3.5" />
+    <path d="M3.5 13v3.25h13V13" />
+  </svg>
+);
+const DONE_ICON = (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M4.5 10.5l3.5 3.5 7.5-8" />
+  </svg>
+);
 
 // The name shown for the picked file: photos say how many they were.
 export function chosenName(file: File, pictures: number): string {
