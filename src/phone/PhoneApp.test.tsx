@@ -116,6 +116,23 @@ describe("a teacher's phone page", () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Fă baremul din test' })).not.toBeInTheDocument());
   });
 
+  it('shows a barem request refused again after the photos were taken again', async () => {
+    const api = fakePhoneApi();
+    api.generateBarem.mockRejectedValue(new ApiError(409, 'barem_day_limit', 'Ai generat azi toate baremele.'));
+    show(api, '?parts=test&from-test=marking-scheme');
+    await screen.findByRole('heading', { level: 1, name: 'Testul' });
+    await pick([pdf('Test.pdf')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite' }));
+    expect(await screen.findByText('Testul a ajuns.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Fă din nou pozele' }));
+    await pick([pdf('Test nou.pdf')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite' }));
+    await waitFor(() => expect(api.generateBarem).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Testul a ajuns.')).toBeInTheDocument();
+    expect(screen.getByText('Ai generat azi toate baremele.')).toBeInTheDocument();
+    expect(api.send).toHaveBeenCalledTimes(2);
+  });
+
   it('shows a refused send and stays on the step', async () => {
     const api = fakePhoneApi();
     api.send.mockRejectedValueOnce(new ApiError(409, 'evaluating', 'Testul se corectează acum.'));

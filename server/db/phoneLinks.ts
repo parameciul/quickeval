@@ -12,7 +12,8 @@ export interface PhoneLink {
 }
 
 // A new link for a test of this teacher: not a Quick Try's (its own link does
-// that) and not archived. The test's expired links go in the same batch.
+// that) and not archived. Every expired link goes in the same batch, so the
+// table holds only the links of the last day.
 // False when the test is not one the teacher may photograph for.
 export async function createPhoneLink(
   db: D1Database,
@@ -23,7 +24,7 @@ export async function createPhoneLink(
   expiresAt: string,
 ): Promise<boolean> {
   const [, inserted] = await db.batch([
-    db.prepare('DELETE FROM test_phone_links WHERE test_id = ? AND expires_at <= ?').bind(testId, now),
+    db.prepare('DELETE FROM test_phone_links WHERE expires_at <= ?').bind(now),
     db
       .prepare(
         `INSERT INTO test_phone_links (token_hash, test_id, created_at, expires_at)

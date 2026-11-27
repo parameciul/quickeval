@@ -23,6 +23,16 @@ describe('Pregătire: the test and the barem from the phone', () => {
     expect(screen.queryByRole('button', { name: 'Fă poze cu telefonul' })).not.toBeInTheDocument();
   });
 
+  it('says a barem from the test that was not asked for once its test arrived', async () => {
+    const api = apiWith({ files: { test: { name: 'Testul.pdf', type: 'application/pdf' }, barem: null } });
+    renderAdmin({ pathname: PAGE, state: { phone: { token: 'p'.repeat(40), ask: { parts: ['test'], fromTest: ['barem'] } } } }, api);
+    const dialog = await screen.findByRole('dialog', { name: 'Fă pozele cu telefonul' });
+    expect(within(dialog).getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+      'TestulA ajuns',
+      'BaremulNu s-a cerut: îl generezi la Pregătire',
+    ]);
+  });
+
   it('opens the window Test nou asked for, once: closed, it stays closed', async () => {
     const api = apiWith({ files: { test: null, barem: null } });
     renderAdmin({ pathname: `${PAGE}`, state: { phone: { token: 'p'.repeat(40), ask: { parts: ['test'], fromTest: ['barem'] } } } }, api);

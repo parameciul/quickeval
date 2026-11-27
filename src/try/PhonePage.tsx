@@ -300,6 +300,7 @@ function TeacherStep({
           await api.generateBarem(detail.test.code);
         } catch (err) {
           setError(err);
+          setAgain(false);
           return;
         }
       }

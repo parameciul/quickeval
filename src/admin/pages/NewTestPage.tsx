@@ -118,9 +118,16 @@ export function NewTestPage() {
     },
     onSuccess: async ({ code, notice, phone }) => {
       await queryClient.invalidateQueries({ queryKey: ['tests'] });
-      // On a phone, the photos are taken here: the phone page opens in this tab.
+      // On a phone, the photos are taken here: the phone page opens in this
+      // tab, in place of Test nou (Back must not show the filled form again,
+      // ready to make a second test). A notice goes to the test page instead,
+      // where Pregătire offers the photos again.
+      if (phone && onPhone && !notice) {
+        window.location.replace(testPhonePath(phone.token, phone.ask, true, currentLang()));
+        return;
+      }
       if (phone && onPhone) {
-        window.location.assign(testPhonePath(phone.token, phone.ask, true, currentLang()));
+        navigate(`/tests/${code}#prepare`, { replace: true, state: { notice } });
         return;
       }
       if (phone) navigate(`/tests/${code}#prepare`, { state: { notice, phone } });
@@ -159,7 +166,8 @@ export function NewTestPage() {
     if (hasCes) return;
     setCesTestFile(null);
     setCesBaremFile(null);
-    setCesBarem((current) => (current === 'generate' ? 'later' : current));
+    setCesTestFrom('upload');
+    setCesBarem((current) => (current === 'generate' ? 'later' : current === 'phone' ? 'upload' : current));
   }, [hasCes]);
   // The drop areas whose photos are being made into a PDF: the test is not
   // made before they end, or their file would be left out.
@@ -307,6 +315,8 @@ export function NewTestPage() {
     const set = ces ? setCesBarem : setBarem;
     const noTest = !(ces ? hasCesTest : hasTest);
     const noteId = `${group}-from-test`;
+    // Said under the pointer too, as the choice's tooltip.
+    const noteText = ces ? t('„Din test” se poate după ce alegi testul CES.') : t('„Din test” se poate după ce alegi testul.');
     const labels: [BaremChoice, string, ReactNode][] = [
       ['upload', t('Fișier'), UPLOAD],
       ['phone', phoneWord, PHONE],
@@ -317,7 +327,7 @@ export function NewTestPage() {
       <fieldset className="seg">
         <legend className="sr-only">{ces ? t('Baremul CES') : withCes ? t('Baremul clasei') : t('Baremul')}</legend>
         {labels.map(([value, label, icon]) => (
-          <label key={value}>
+          <label key={value} title={value === 'generate' && noTest ? noteText : undefined}>
             <input
               type="radio"
               name={group}
@@ -339,7 +349,7 @@ export function NewTestPage() {
     // the switch and its tile.
     const note = noTest && (
       <p className="sr-only" id={noteId}>
-        {ces ? t('„Din test” se poate după ce alegi testul CES.') : t('„Din test” se poate după ce alegi testul.')}
+        {noteText}
       </p>
     );
     // The CES barem is out of 90 points with 10 given: said in its tile, for a

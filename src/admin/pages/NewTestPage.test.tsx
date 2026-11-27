@@ -390,6 +390,19 @@ describe('NewTestPage, a class with a CES student', () => {
   const cesBaremChoices = () => within(screen.getByRole('group', { name: 'Baremul CES' }));
   const cesBaremField = () => screen.getByLabelText(/^Fișierul baremului CES/);
 
+  it('forgets the CES phone choices with a class that has no CES student', async () => {
+    renderAdmin('/tests/new', withCes());
+    await fillClassAndTitle('2');
+    const cesTest = () => within(screen.getByRole('group', { name: 'Testul CES' }));
+    await userEvent.click(await cesTest().findByRole('radio', { name: 'Telefon' }));
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: 'Telefon' }));
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '1');
+    await waitFor(() => expect(screen.queryByRole('switch')).not.toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '2');
+    expect(await cesTest().findByRole('radio', { name: 'Fișier' })).toBeChecked();
+    expect(cesBaremChoices().getByRole('radio', { name: 'Fișier' })).toBeChecked();
+  });
+
   it('shows the CES students and the switch, on, with the CES files under the class ones', async () => {
     renderAdmin('/tests/new', withCes());
     await fillClassAndTitle('2');
@@ -651,6 +664,14 @@ describe('NewTestPage: the test and the barem from the phone', () => {
     expect(api.createPhoneLink).toHaveBeenCalledTimes(1);
     const dialog = await screen.findByRole('dialog', { name: 'Fă pozele cu telefonul' });
     expect(within(dialog).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['BaremulAșteaptă pozele']);
+  });
+
+  it('says why "Din test" is off in its tooltip too', async () => {
+    renderAdmin('/tests/new', classes());
+    await fillClassAndTitle();
+    expect(choice('Din test').closest('label')).toHaveAttribute('title', '„Din test” se poate după ce alegi testul.');
+    await userEvent.click(testChoice('Telefon'));
+    expect(choice('Din test').closest('label')).not.toHaveAttribute('title');
   });
 
   it('goes to the test page with a notice when the phone link cannot be made', async () => {

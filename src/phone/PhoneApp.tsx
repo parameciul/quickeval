@@ -227,6 +227,7 @@ function PartStep({
           await api.generateBarem(info.code, baremPart);
         } catch (err) {
           setError(err);
+          setAgain(false);
           return;
         }
       }

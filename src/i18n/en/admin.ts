@@ -1359,5 +1359,6 @@ export const ADMIN = {
   "Scanează codul cu camera telefonului.": "Scan the code with your phone's camera.",
   "Codul QR al paginii pentru poze": "QR code of the photo page",
   "Ce vine de pe telefon": "What comes from the phone",
-  "Codul merge 24 de ore. Îl faci din nou la Pregătire: „Fă poze cu telefonul”.": "The code works for 24 hours. You make it again at Prepare: “Take photos with your phone”.",
+  "Codul merge {hours} de ore. Îl faci din nou la Pregătire: „Fă poze cu telefonul”.": "The code works for {hours} hours. You make it again at Prepare: “Take photos with your phone”.",
+  "Nu s-a cerut: îl generezi la Pregătire": "Not asked for: you make it at Prepare",
 } as const satisfies Record<string, string>;

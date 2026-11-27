@@ -63,7 +63,8 @@ describe('POST /api/admin/tests/:code/phone-link', () => {
     expect(res.body.error).toBe('phone_link');
   });
 
-  it('deletes the test’s expired links when it makes a new one', async () => {
+  it('deletes every expired link when it makes a new one', async () => {
+    await newLink(otherCode);
     const old = await newLink();
     await api.db.prepare("UPDATE test_phone_links SET expires_at = '2020-01-01T00:00:00.000Z'").run();
     await newLink();
