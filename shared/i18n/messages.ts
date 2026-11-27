@@ -265,6 +265,10 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   'PROBA': 'TRIAL',
   'Linkul nu este bun. Verifică dacă l-ai copiat întreg.': 'The link is not right. Check that you copied all of it.',
   'Linkul nu este întreg.': 'The link is not complete.',
+  'Linkul nu este bun. Scanează din nou codul de pe calculator.': 'The link is not right. Scan the code on the computer again.',
+  'Linkul a expirat. Fă un cod nou din pagina testului, la Pregătire: „Fă poze cu telefonul”.':
+    'The link has expired. Make a new code from the test page, at Prepare: “Take photos with your phone”.',
+  'Pentru acest test nu poți trimite poze cu telefonul.': 'You cannot send photos with your phone for this test.',
   'Încercarea a expirat. Poți face o încercare nouă de pe pagina principală.': 'The try has expired. You can make a new try from the home page.',
   'Limita de încercări gratuite pentru azi a fost atinsă. Încearcă din nou mâine sau creează un cont: corectezi gratuit un test pentru toată clasa.': "Today's limit of free tries is reached. Try again tomorrow, or create an account: grade one test for the whole class for free.",
   'Nu am putut verifica încercarea. Reîncarcă pagina și încearcă din nou.': 'I could not check the try. Reload the page and try again.',

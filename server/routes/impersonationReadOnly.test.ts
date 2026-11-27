@@ -59,6 +59,7 @@ describe('a view is read only', () => {
     ['PATCH', '/api/admin/tests/9Z-26T1', { title: 'Altul' }],
     ['PUT', '/api/admin/accounts/1/marking-scheme-notes', { show: false }],
     ['DELETE', '/api/admin/tests/9Z-26T1', undefined],
+    ['POST', '/api/admin/tests/9Z-26T1/phone-link', undefined],
   ])('refuses every write method: %s %s', async (method, path, body) => {
     const res = await viewed(method, path, body);
     expect(res.status).toBe(403);
@@ -66,6 +67,7 @@ describe('a view is read only', () => {
     expect(await count('SELECT COUNT(*) AS n FROM classes')).toBe(1);
     const test = await api.db.prepare("SELECT title FROM tests WHERE code = '9Z-26T1'").first<{ title: string }>();
     expect(test!.title).toBe('Test străin');
+    expect(await count('SELECT COUNT(*) AS n FROM test_phone_links')).toBe(0);
   });
 
   it('lets reads through', async () => {

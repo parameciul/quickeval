@@ -791,6 +791,11 @@ export function createFakeApi(data: FakeData = { classes: [], students: {} }) {
       parts.barem = { ...parts.barem, request: 'requested' };
       return { barem: parts.barem, robot: 'dispatched' };
     }),
+    // A fixed token, so a page test can check the phone page's address.
+    createPhoneLink: vi.fn(async (code: string) => {
+      findTest(code);
+      return { token: 'p'.repeat(40), expiresAt: '2026-10-07T10:00:00.000Z' };
+    }),
     // Like the server: a stale files version is refused; a checked CES barem
     // sends the CES papers that waited to the robot.
     confirmBarem: vi.fn(async (code: string, filesVersion: number, variant: TestVariant = 'class'): Promise<BaremCheckedAnswer> => {

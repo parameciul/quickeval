@@ -55,11 +55,14 @@ describe('NewTestPage', () => {
     expect(screen.queryByRole('link', { name: /^←/ })).not.toBeInTheDocument();
   });
 
-  it('draws the test and the barem as file tiles, and the barem source as a switch of three', async () => {
+  it('draws the test and the barem as file tiles, and their sources as switches with an icon on each choice', async () => {
     renderAdmin('/tests/new', classes());
     await fillClassAndTitle();
     const radios = within(screen.getByRole('group', { name: 'Baremul' })).getAllByRole('radio');
-    expect(radios.map((radio) => radio.closest('label')!.textContent)).toEqual(['Fișier', 'Din test', 'Mai târziu']);
+    expect(radios.map((radio) => radio.closest('label')!.textContent)).toEqual(['Fișier', 'Telefon', 'Din test', 'Mai târziu']);
+    const testRadios = within(screen.getByRole('group', { name: 'Testul' })).getAllByRole('radio');
+    expect(testRadios.map((radio) => radio.closest('label')!.textContent)).toEqual(['Fișier', 'Telefon']);
+    for (const radio of [...radios, ...testRadios]) expect(radio.closest('label')!.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(choice('Fișier')).toBeChecked();
     expect(testField()).toHaveAccessibleName(/^Fișierul testului: Alege testul Cel pe care îl tipărești\./);
     expect(baremField()).toHaveAccessibleName(/^Fișierul baremului: Alege baremul După el se dă punctajul\./);
@@ -157,6 +160,8 @@ describe('NewTestPage', () => {
     const generate = choice('Din test');
     expect(generate).toBeDisabled();
     expect(generate).toHaveAccessibleDescription('„Din test” se poate după ce alegi testul.');
+    // Said to a screen reader only: nothing stands between the switch and its tile.
+    expect(screen.getByText('„Din test” se poate după ce alegi testul.')).toHaveClass('sr-only');
     await userEvent.upload(testField(), pdf('Test.pdf'));
     expect(generate).toBeEnabled();
     expect(generate).not.toHaveAccessibleDescription();
@@ -317,7 +322,8 @@ describe('NewTestPage', () => {
     const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
     expect([stepTag(first), stepTag(second), stepTag(third)]).toEqual(['De completat', 'Poți și mai târziu', 'Poți și mai târziu']);
     for (const step of [first, second, third]) expect(step).not.toHaveClass('is-done');
-    // Only the test's "can wait" is shown; the others are for a screen reader.
+    // Only the test's "can wait" is shown; the others are for a screen reader
+    // until the step is done, when the files' steps show "Gata".
     expect(first.querySelector('.step-state')).toHaveClass('sr-only');
     expect(second.querySelector('.step-state')).not.toHaveClass('sr-only');
     expect(third.querySelector('.step-state')).toHaveClass('sr-only');
@@ -333,24 +339,30 @@ describe('NewTestPage', () => {
     await userEvent.upload(testField(), pdf('Test.pdf'));
     expect(stepTag(second)).toBe('Gata');
     expect(second).toHaveClass('is-done');
-    expect(second.querySelector('.step-state')).toHaveClass('sr-only');
+    expect(second.querySelector('.step-state')).toHaveClass('step-state', 'is-done');
+    expect(second.querySelector('.step-state')).not.toHaveClass('sr-only');
     expect(stepTag(third)).toBe('Poți și mai târziu');
     await userEvent.upload(baremField(), pdf('Barem.pdf'));
     expect(stepTag(third)).toBe('Gata');
     expect(third).toHaveClass('is-done');
+    expect(third.querySelector('.step-state')).not.toHaveClass('sr-only');
+    // The class's step shows only its tick.
+    expect(first.querySelector('.step-state')).toHaveClass('sr-only');
   });
 
-  it('says a barem asked from the test will be generated, and not one for later', async () => {
+  it('counts a barem asked from the test as a finished step, with a blue tile, and not one left for later', async () => {
     renderAdmin('/tests/new', classes());
     await fillClassAndTitle();
     const third = stepOf(screen.getByRole('heading', { level: 2, name: 'Baremul' }));
     await userEvent.upload(testField(), pdf('Test.pdf'));
     await userEvent.click(choice('Din test'));
-    expect(stepTag(third)).toBe('Se va genera');
-    expect(third).not.toHaveClass('is-done');
+    expect(stepTag(third)).toBe('Gata');
+    expect(third).toHaveClass('is-done');
+    expect(screen.getByText('Baremul se face din test').closest('.pick-tile')).toHaveClass('is-plan');
     await userEvent.click(choice('Mai târziu'));
     expect(stepTag(third)).toBe('Poți și mai târziu');
     expect(third).not.toHaveClass('is-done');
+    expect(screen.getByText('Îl adaugi din pagina testului, la Pregătire').closest('.pick-tile')).toHaveClass('is-later');
   });
 
   it('asks for a class first when the year has none', async () => {
@@ -377,6 +389,19 @@ describe('NewTestPage, a class with a CES student', () => {
   const missingItems = () => [...document.querySelectorAll('.missing-list li')].map((item) => item.textContent);
   const cesBaremChoices = () => within(screen.getByRole('group', { name: 'Baremul CES' }));
   const cesBaremField = () => screen.getByLabelText(/^Fișierul baremului CES/);
+
+  it('forgets the CES phone choices with a class that has no CES student', async () => {
+    renderAdmin('/tests/new', withCes());
+    await fillClassAndTitle('2');
+    const cesTest = () => within(screen.getByRole('group', { name: 'Testul CES' }));
+    await userEvent.click(await cesTest().findByRole('radio', { name: 'Telefon' }));
+    await userEvent.click(cesBaremChoices().getByRole('radio', { name: 'Telefon' }));
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '1');
+    await waitFor(() => expect(screen.queryByRole('switch')).not.toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText('Clasa'), '2');
+    expect(await cesTest().findByRole('radio', { name: 'Fișier' })).toBeChecked();
+    expect(cesBaremChoices().getByRole('radio', { name: 'Fișier' })).toBeChecked();
+  });
 
   it('shows the CES students and the switch, on, with the CES files under the class ones', async () => {
     renderAdmin('/tests/new', withCes());
@@ -412,11 +437,10 @@ describe('NewTestPage, a class with a CES student', () => {
     renderAdmin('/tests/new', withCes());
     await fillClassAndTitle('2');
     await screen.findByRole('switch');
-    const note = 'Doar pentru corectare: 90 de puncte și 10 din oficiu.';
-    expect(screen.getByText(note)).toBeInTheDocument();
+    // Inside the tile, never between the switch and the tile.
+    expect(cesBaremField()).toHaveAccessibleName(/Doar pentru corectare: 90 de puncte și 10 din oficiu\. PDF, Word sau poze\.$/);
     await userEvent.click(cesBaremChoices().getByRole('radio', { name: 'Mai târziu' }));
-    expect(screen.getByText(note)).toBeInTheDocument();
-    expect(screen.getByText('Lucrările CES nu se corectează fără el.')).toBeInTheDocument();
+    expect(screen.getByText('Lucrările CES nu se corectează fără el. Doar pentru corectare: 90 de puncte și 10 din oficiu.')).toBeVisible();
     expect(screen.queryByText('Corectarea nu începe fără barem.')).not.toBeInTheDocument();
   });
 
@@ -563,5 +587,101 @@ describe('NewTestPage, a class with a CES student', () => {
     await expectLocation('/tests/9R2-26T1');
     expect(api.createTest).toHaveBeenCalledWith({ classId: 2, title: 'Fracții', cesOff: true });
     expect(api.uploadTestFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('NewTestPage: the test and the barem from the phone', () => {
+  const testChoice = (name: string) => within(screen.getByRole('group', { name: /^Testul( clasei)?$/ })).getByRole('radio', { name });
+
+  it('counts a part from the phone as chosen, in a blue tile, and lets the barem be made from that test', async () => {
+    renderAdmin('/tests/new', classes());
+    await fillClassAndTitle();
+    expect(choice('Din test')).toBeDisabled();
+    await userEvent.click(testChoice('Telefon'));
+    expect(testField()).not.toBeVisible();
+    expect(screen.getByText('Faci pozele testului cu telefonul, după ce creezi testul').closest('.pick-tile')).toHaveClass('is-plan');
+    expect(screen.getByText('Un singur cod QR pentru toate pozele.')).toBeInTheDocument();
+    const second = stepOf(screen.getByRole('heading', { level: 2, name: 'Testul' }));
+    expect(stepTag(second)).toBe('Gata');
+    expect(choice('Din test')).toBeEnabled();
+    await userEvent.click(choice('Din test'));
+    expect(screen.getByText('După ce ajung pozele testului. În câteva minute, apoi îl verifici înainte de corectare.')).toBeInTheDocument();
+    expect(screen.queryByText('Încă lipsește:')).not.toBeInTheDocument();
+    const state = screen.getByRole('region', { name: 'Starea testului' });
+    expect(within(state).getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+      'Clasagata',
+      'Titlulgata',
+      'Testulde pe telefon',
+      'Baremulse va genera',
+    ]);
+  });
+
+  it('moves a barem made from the test to Mai târziu when the test goes back to a file it does not have', async () => {
+    renderAdmin('/tests/new', classes());
+    await fillClassAndTitle();
+    await userEvent.click(testChoice('Telefon'));
+    await userEvent.click(choice('Din test'));
+    await userEvent.click(testChoice('Fișier'));
+    expect(choice('Mai târziu')).toBeChecked();
+    expect(choice('Din test')).toBeDisabled();
+  });
+
+  it('makes the test and one phone link, sends no file of the phone parts, and opens the QR code at Pregătire', async () => {
+    const api = classes();
+    renderAdmin('/tests/new', api, <LocationProbe />);
+    await fillClassAndTitle();
+    await userEvent.click(testChoice('Telefon'));
+    await userEvent.click(choice('Din test'));
+    await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
+
+    await expectLocation('/tests/6E2-26T1#prepare');
+    expect(api.createPhoneLink).toHaveBeenCalledWith('6E2-26T1');
+    expect(api.uploadTestFile).not.toHaveBeenCalled();
+    // Asked for by the phone page, once the test's photos are there.
+    expect(api.generateBarem).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('dialog', { name: 'Fă pozele cu telefonul' });
+    expect(within(dialog).getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+      'TestulAșteaptă pozele',
+      'BaremulSe face din test, după ce ajunge testul',
+    ]);
+    expect(within(dialog).getByTitle('Codul QR al paginii pentru poze')).toBeInTheDocument();
+    // The × of the window and the button at its foot.
+    await userEvent.click(within(dialog).getAllByRole('button', { name: 'Închide' }).at(-1)!);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('sends the file parts as before, and makes no phone link when no part is from the phone', async () => {
+    const api = classes();
+    renderAdmin('/tests/new', api, <LocationProbe />);
+    await fillClassAndTitle();
+    await userEvent.upload(testField(), pdf('Test.pdf'));
+    await userEvent.click(choice('Telefon'));
+    expect(screen.getByText('Faci pozele baremului cu telefonul, după ce creezi testul')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
+    await expectLocation('/tests/6E2-26T1#prepare');
+    expect(api.uploadTestFile).toHaveBeenCalledTimes(1);
+    expect(api.uploadTestFile).toHaveBeenCalledWith('6E2-26T1', 'test', expect.any(File));
+    expect(api.createPhoneLink).toHaveBeenCalledTimes(1);
+    const dialog = await screen.findByRole('dialog', { name: 'Fă pozele cu telefonul' });
+    expect(within(dialog).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['BaremulAșteaptă pozele']);
+  });
+
+  it('says why "Din test" is off in its tooltip too', async () => {
+    renderAdmin('/tests/new', classes());
+    await fillClassAndTitle();
+    expect(choice('Din test').closest('label')).toHaveAttribute('title', '„Din test” se poate după ce alegi testul.');
+    await userEvent.click(testChoice('Telefon'));
+    expect(choice('Din test').closest('label')).not.toHaveAttribute('title');
+  });
+
+  it('goes to the test page with a notice when the phone link cannot be made', async () => {
+    const api = classes();
+    api.createPhoneLink.mockRejectedValueOnce(new ApiError(409, 'phone_link', 'Pentru acest test nu poți trimite poze cu telefonul.'));
+    renderAdmin('/tests/new', api, <LocationProbe />);
+    await fillClassAndTitle();
+    await userEvent.click(testChoice('Telefon'));
+    await userEvent.click(screen.getByRole('button', { name: 'Creează testul' }));
+    await expectLocation(/^\/tests\/6E2-26T1 \| Testul a fost creat, dar codul pentru telefon nu s-a putut face: Pentru acest test/);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

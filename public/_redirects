@@ -28,7 +28,8 @@
 /app-verificare.png /app-graded-paper-v2.png 301
 /app-graded-paper.png /app-graded-paper-v2.png 301
 
-# The teacher app, the student app and a Quick Try's page are single-page apps:
+# The teacher app, the student app, a Quick Try's page and a teacher's phone
+# page (/phone/<token>, phone/index.html) are single-page apps:
 # every /teacher page loads /teacher/ (teacher/index.html), every /u/<token>
 # page loads /u/ (u/index.html), every /try/<token> page loads /try/
 # (try/index.html). Keep this directory form: wrangler refuses
@@ -36,6 +37,7 @@
 /teacher/* /teacher/ 200
 /u/* /u/ 200
 /try/* /try/ 200
+/phone/* /phone/ 200
 
 # The teacher app moved from /admin to /teacher. Old links keep working.
 /admin /teacher/ 301

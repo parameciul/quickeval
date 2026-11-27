@@ -1,22 +1,20 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { QuickTryInfo, TestDetail } from '../../shared/api.ts';
-import { EMPTY_FILE, TEACHER_FILE_TYPES, uploadTypeOf, type TestFileKind } from '../../shared/files.ts';
-import { translateMessage } from '../../shared/i18n/messages.ts';
+import type { TestFileKind } from '../../shared/files.ts';
 import { asksBaremAfterTest, parsePhoneParts, phonePartsOf, tryName, type PhonePart } from '../../shared/quickTry.ts';
 import { useApi } from '../admin/ApiContext.tsx';
 import { ErrorMessage } from '../admin/ErrorMessage.tsx';
 import { ActionIcon } from '../ui/ActionIcon.tsx';
 import { ApiError } from '../ui/ApiError.ts';
 import { countLabel, formatFileSize } from '../ui/format.ts';
-import { MAX_PICTURES, PICTURE_TYPES, picturesToPdf, TEACHER_PICK_ACCEPT } from '../ui/picturesPdf.ts';
 import { PagesUploader, type PagesApi } from '../upload/PagesUploader.tsx';
-import { previewPhoto } from '../upload/shrink.ts';
+import { PhotoSend } from '../upload/PhotoSend.tsx';
 import type { TryApi } from './api.ts';
 import { fileChangesLeft, phaseOf } from './phase.ts';
 import { Expired, isExpired } from './TryNotice.tsx';
-import { t, tc } from '../i18n/t.ts';
+import { t } from '../i18n/t.ts';
 
 // The phone page of a try (/try/<token>/phone): what the phone sends, with no
 // result and no link to the try's page. The student's pages are sent like a
@@ -241,13 +239,9 @@ function Steps({ parts, step, detail }: { parts: PhonePart[]; step: number; deta
   );
 }
 
-const isPicture = (file: File) => PICTURE_TYPES.includes(uploadTypeOf(file));
-const isDocument = (file: File) => TEACHER_FILE_TYPES.includes(uploadTypeOf(file));
-
-// The test or the barem from the phone: photos taken one by one (kept here, in
-// the order taken, which a phone's camera names do not give), or one PDF or
-// Word file, sent once as one file. Once the try has it, the step says so and
-// lets her take it again.
+// The test or the barem from the phone: photos taken one by one, or one PDF
+// or Word file, sent once as one file (PhotoSend). Once the try has it, the
+// step says so and lets her take it again.
 function TeacherStep({
   kind,
   parts,
@@ -271,74 +265,47 @@ function TeacherStep({
   const queryClient = useQueryClient();
   const arrived = detail.test.files[kind] !== null;
   const [again, setAgain] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [doc, setDoc] = useState<File | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const left = fileChangesLeft(detail);
   useEffect(() => {
-    onBusy(sending);
-  }, [sending, onBusy]);
-  useEffect(() => () => onBusy(false), [onBusy]);
+    onBusy(asking);
+  }, [asking, onBusy]);
   // The test arrived but the barem made from it was not asked for (the
   // request failed): she asks again here.
   const baremLeft = kind === 'test' && arrived && asksBaremAfterTest(parts, detail.test);
   const askBarem = async () => {
     setError(null);
-    setSending(true);
+    setAsking(true);
     try {
       await api.generateBarem(detail.test.code);
     } catch (err) {
       setError(err);
     } finally {
-      setSending(false);
+      setAsking(false);
       void queryClient.invalidateQueries({ queryKey: ['test', detail.test.code] });
     }
   };
   const heading = kind === 'test' ? t('Testul') : t('Baremul');
   const nextName = next === null ? null : next === 'pages' ? t('lucrarea elevului') : t('baremul');
 
-  const add = (event: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(event.target.files ?? []);
-    event.target.value = '';
-    if (picked.length === 0) return;
-    setProblem(null);
-    if (picked.every(isPicture)) {
-      if (photos.length + picked.length > MAX_PICTURES) return setProblem(t('Alege cel mult {pictures}.', { pictures: tc(MAX_PICTURES, 'poză', 'poze') }));
-      if (picked.some((file) => file.size === 0)) return setProblem(translateMessage(EMPTY_FILE));
-      setDoc(null);
-      setPhotos([...photos, ...picked]);
-    } else if (picked.length === 1 && isDocument(picked[0]!)) {
-      setPhotos([]);
-      setDoc(picked[0]!);
-    } else {
-      setProblem(t('Încarcă un fișier PDF sau Word (.docx), ori poze JPG, PNG sau WebP.'));
-    }
-  };
-
-  const send = async () => {
-    setError(null);
-    setProblem(null);
-    setSending(true);
+  const send = async (file: File) => {
     try {
-      let file = doc;
-      if (!file) {
-        const made = await picturesToPdf(photos, `${heading}.pdf`);
-        if ('problem' in made) {
-          setProblem(made.problem);
+      await api.uploadTestFile(detail.test.code, kind, file);
+      // With no barem of her own, the barem is made from this test (the try
+      // asks once). A refused request shows on the step of the test that
+      // arrived, with "Fă baremul din test" to ask again.
+      if (kind === 'test' && asksBaremAfterTest(parts, detail.test)) {
+        try {
+          await api.generateBarem(detail.test.code);
+        } catch (err) {
+          setError(err);
+          setAgain(false);
           return;
         }
-        file = made.file;
       }
-      await api.uploadTestFile(detail.test.code, kind, file);
-      // With no barem of her own, the barem is made from this test (the try asks once).
-      if (kind === 'test' && asksBaremAfterTest(parts, detail.test)) await api.generateBarem(detail.test.code);
       onDone();
-    } catch (err) {
-      setError(err);
     } finally {
-      setSending(false);
       void queryClient.invalidateQueries({ queryKey: ['test', detail.test.code] });
     }
   };
@@ -355,12 +322,12 @@ function TeacherStep({
         {error !== null && <ErrorMessage error={error} />}
         <div className="phone-foot">
           {baremLeft && (
-            <button type="button" className="button button-big" disabled={sending} onClick={() => void askBarem()}>
+            <button type="button" className="button button-big" disabled={asking} onClick={() => void askBarem()}>
               <ActionIcon name="generate" />
               {t('Fă baremul din test')}
             </button>
           )}
-          <button type="button" className={baremLeft ? 'button-quiet button-big' : 'button button-big'} disabled={sending} onClick={onDone}>
+          <button type="button" className={baremLeft ? 'button-quiet button-big' : 'button button-big'} disabled={asking} onClick={onDone}>
             {nextName ? t('Continuă cu {next}', { next: nextName }) : t('Am terminat')}
             {nextName && <ActionIcon name="arrow" />}
           </button>
@@ -376,107 +343,36 @@ function TeacherStep({
     );
   }
 
-  const count = doc ? 1 : photos.length;
   const sendLabel = kind === 'test' ? (nextName ? t('Trimite testul și continuă') : t('Trimite testul')) : nextName ? t('Trimite baremul și continuă') : t('Trimite baremul');
   return (
     <section className="phone-teacher">
       <h1>{heading}</h1>
       <p className="phone-title">{kind === 'test' ? t('Fotografiază toate paginile testului, în ordine.') : t('Fotografiază toate paginile baremului, în ordine.')}</p>
-      <div className="big-actions">
-        <label className="button button-big pick-button">
-          <ActionIcon name="camera" />
-          {t('Fă o poză')}
-          <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={sending} onChange={add} />
-        </label>
-        <label className="button-quiet button-big pick-button">
-          <ActionIcon name="upload" />
-          {t('Alege fișiere')}
-          <input type="file" accept={TEACHER_PICK_ACCEPT} multiple className="sr-only" disabled={sending} onChange={add} />
-        </label>
-      </div>
-      <p className="hint">{t('Poze sau un fișier PDF ori Word.')}</p>
-      {problem && (
-        <p className="alert" role="alert">
-          {problem}
-        </p>
-      )}
-      {doc && (
-        <ol className="page-list">
-          <li className="page-item">
-            <span className="thumb thumb-file" aria-hidden="true">
-              {uploadTypeOf(doc) === 'application/pdf' ? 'PDF' : 'DOC'}
-            </span>
-            <span className="page-info">
-              <span className="page-name">{doc.name}</span>
-              <span className="hint">{formatFileSize(doc.size)}</span>
-            </span>
-            <span className="page-actions">
-              <button type="button" className="button-quiet button-small" disabled={sending} onClick={() => setDoc(null)}>
-                {t('Șterge')}
+      <PhotoSend
+        pdfName={`${heading}.pdf`}
+        sendLabel={sendLabel}
+        arrow={nextName !== null}
+        locked={left === 0 ? t('Nu mai poți schimba testul sau baremul în această încercare.') : null}
+        onSend={send}
+        onBusy={onBusy}
+      >
+        {(sending) => (
+          <>
+            {/* She may send this part later, from the laptop or the try's page. */}
+            {!arrived && nextName && (
+              <button type="button" className="button-quiet button-big" disabled={sending} onClick={onDone}>
+                {t('Mai târziu')}
               </button>
-            </span>
-          </li>
-        </ol>
-      )}
-      {photos.length > 0 && (
-        <ol className="phone-shots" aria-label={t('Pozele ({length})', { length: photos.length })}>
-          {photos.map((photo, index) => (
-            <li key={`${index}-${photo.name}-${photo.size}`}>
-              <Shot photo={photo} label={t('Poza {n}', { n: index + 1 })} />
-              <button
-                type="button"
-                className="phone-shot-remove"
-                aria-label={t('Șterge poza {n}', { n: index + 1 })}
-                title={t('Șterge poza {n}', { n: index + 1 })}
-                disabled={sending}
-                onClick={() => setPhotos(photos.filter((_, other) => other !== index))}
-              >
-                <ActionIcon name="trash" />
+            )}
+            {arrived && (
+              <button type="button" className="button-quiet button-big" disabled={sending} onClick={() => setAgain(false)}>
+                {t('Renunță')}
               </button>
-            </li>
-          ))}
-        </ol>
-      )}
-      {error !== null && <ErrorMessage error={error} />}
-      <div className="phone-foot">
-        <button type="button" className="button button-big" disabled={count === 0 || sending || left === 0} onClick={() => void send()}>
-          {sending ? t('Se trimite…') : sendLabel}
-          {!sending && nextName && <ActionIcon name="arrow" />}
-        </button>
-        {left === 0 && <p className="hint">{t('Nu mai poți schimba testul sau baremul în această încercare.')}</p>}
-        {/* She may send this part later, from the laptop or the try's page. */}
-        {!arrived && nextName && (
-          <button type="button" className="button-quiet button-big" disabled={sending} onClick={onDone}>
-            {t('Mai târziu')}
-          </button>
+            )}
+            {back}
+          </>
         )}
-        {arrived && (
-          <button type="button" className="button-quiet button-big" disabled={sending} onClick={() => setAgain(false)}>
-            {t('Renunță')}
-          </button>
-        )}
-        {back}
-      </div>
+      </PhotoSend>
     </section>
   );
-}
-
-// A photo taken, made small for its preview: a phone's memory holds a few
-// small pictures, not twenty camera photos decoded at once.
-function Shot({ photo, label }: { photo: File; label: string }) {
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    let url: string | null = null;
-    void previewPhoto(photo).then((small) => {
-      if (!live) return;
-      url = URL.createObjectURL(small);
-      setSrc(url);
-    });
-    return () => {
-      live = false;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [photo]);
-  return src ? <img src={src} alt={label} /> : <span className="thumb-file">{label}</span>;
 }

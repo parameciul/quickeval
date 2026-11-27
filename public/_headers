@@ -24,6 +24,9 @@
 /try/*
   X-Robots-Tag: noindex, nofollow
 
+/phone/*
+  X-Robots-Tag: noindex, nofollow
+
 # The old address is being retired: keep it out of search so only mqgrader.ro ranks.
 https://quickeval.pages.dev/*
   X-Robots-Tag: noindex, nofollow
