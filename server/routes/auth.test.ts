@@ -279,12 +279,14 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('keeps at most a fixed number of accounts waiting', async () => {
+    // Recent, or the sign-up first clears them as waiting too long.
+    const waitingSince = new Date().toISOString();
     const statements = Array.from({ length: MAX_PENDING_ACCOUNTS }, (_, i) =>
       api.db
         .prepare(
-          "INSERT INTO teachers (email, name, created_at, status, demo, email_confirmed_at) VALUES (?, 'X', '2026-10-29', 'pending', 1, '2026-10-29')",
+          "INSERT INTO teachers (email, name, created_at, status, demo, email_confirmed_at) VALUES (?1, 'X', ?2, 'pending', 1, ?2)",
         )
-        .bind(`p${i}@example.com`),
+        .bind(`p${i}@example.com`, waitingSince),
     );
     await api.db.batch(statements);
     const res = await signup({ name: 'Ana', email: 'ana@example.com', password: 'parola-lunga' });

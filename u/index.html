@@ -11,7 +11,8 @@
     <script src="/theme.js"></script>
     <script
       src="https://stats.mqgrader.ro/api/script.js?siteId=b5be2803e8ab"
-      data-mask-patterns='["/u/", "/u/result/*", "/u/rezultat/*", "/u/*", "/u/**"]'
+      data-skip-patterns='["re:^/u/(result|rezultat)(/|#|$)"]'
+      data-mask-patterns='["/u/", "/u/*", "/u/**"]'
       defer
     ></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
