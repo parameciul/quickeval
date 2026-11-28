@@ -28,6 +28,7 @@ const sentPath = (path: string, patterns: string[]) => firstMatch(path, patterns
 
 const counterOf = (html: string) => new DOMParser().parseFromString(html, 'text/html').querySelector<HTMLScriptElement>(`script[src="${STATS_SCRIPT}"]`);
 const maskOf = (html: string) => JSON.parse(counterOf(html)!.dataset.maskPatterns!) as string[];
+const skipOf = (html: string) => JSON.parse(counterOf(html)!.dataset.skipPatterns!) as string[];
 const referrerOf = (html: string) => new DOMParser().parseFromString(html, 'text/html').querySelector('meta[name="referrer"]')?.getAttribute('content');
 
 const UPLOAD = 'abcdefghijkmnop3';
@@ -39,6 +40,7 @@ const variants = (path: string) => [path, `${path}/`, `${path}/extra`, `${path}#
 
 describe('the student pages', () => {
   const mask = maskOf(studentRaw);
+  const skip = skipOf(studentRaw);
 
   it('load the counter, deferred, and send no referrer', () => {
     expect(counterOf(studentRaw)!.defer).toBe(true);
@@ -53,10 +55,15 @@ describe('the student pages', () => {
     }
   });
 
-  it('keep the test link and the result link apart', () => {
+  it('send nothing from the result page', () => {
+    for (const path of ['/u/result', '/u/rezultat', ...[`/u/result/${RESULT}`, `/u/rezultat/${RESULT}`].flatMap(variants)]) {
+      expect(firstMatch(path, skip), path).not.toBeNull();
+    }
+  });
+
+  it('still count the test link, with its token hidden', () => {
+    for (const path of ['/u/', `/u/${UPLOAD}`, '/u/resultabcdefghi']) expect(firstMatch(path, skip), path).toBeNull();
     expect(sentPath(`/u/${UPLOAD}`, mask)).toBe('/u/*');
-    expect(sentPath(`/u/result/${RESULT}`, mask)).toBe('/u/result/*');
-    expect(sentPath(`/u/rezultat/${RESULT}`, mask)).toBe('/u/rezultat/*');
     expect(sentPath('/u/', mask)).toBe('/u/');
   });
 });
